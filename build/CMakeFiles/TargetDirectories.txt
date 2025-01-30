@@ -1,0 +1,3 @@
+/home/zishang/aligator_workspace/aligator_cimpc/build/CMakeFiles/aligator_cimpc.dir
+/home/zishang/aligator_workspace/aligator_cimpc/build/CMakeFiles/edit_cache.dir
+/home/zishang/aligator_workspace/aligator_cimpc/build/CMakeFiles/rebuild_cache.dir

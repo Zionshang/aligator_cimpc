@@ -1,0 +1,295 @@
+{
+	"artifacts" : 
+	[
+		{
+			"path" : "aligator_cimpc"
+		}
+	],
+	"backtrace" : 1,
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"add_executable",
+			"target_link_libraries"
+		],
+		"files" : 
+		[
+			"CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 7,
+				"parent" : 0
+			},
+			{
+				"command" : 1,
+				"file" : 0,
+				"line" : 9,
+				"parent" : 0
+			}
+		]
+	},
+	"compileGroups" : 
+	[
+		{
+			"compileCommandFragments" : 
+			[
+				{
+					"fragment" : "-O3 -DNDEBUG"
+				},
+				{
+					"backtrace" : 2,
+					"fragment" : "-fopenmp"
+				}
+			],
+			"defines" : 
+			[
+				{
+					"backtrace" : 2,
+					"define" : "ALIGATOR_ENABLE_TEMPLATE_INSTANTIATION"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "ALIGATOR_MULTITHREADING"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "ALIGATOR_PINOCCHIO_V3"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "ALIGATOR_WITH_CROCODDYL_COMPAT"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "ALIGATOR_WITH_PINOCCHIO"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "BOOST_MPL_LIMIT_LIST_SIZE=30"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "BOOST_MPL_LIMIT_VECTOR_SIZE=30"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "COAL_BACKWARD_COMPATIBILITY_WITH_HPP_FCL"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "COAL_HAS_OCTOMAP"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "COAL_HAVE_OCTOMAP"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "OCTOMAP_MAJOR_VERSION=1"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "OCTOMAP_MINOR_VERSION=9"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "OCTOMAP_PATCH_VERSION=7"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "PINOCCHIO_ENABLE_TEMPLATE_INSTANTIATION"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "PINOCCHIO_WITH_HPP_FCL"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "PINOCCHIO_WITH_URDFDOM"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "PROXSUITE_NLP_ENABLE_TEMPLATE_INSTANTIATION"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "PROXSUITE_NLP_WITH_PINOCCHIO"
+				}
+			],
+			"includes" : 
+			[
+				{
+					"backtrace" : 2,
+					"isSystem" : true,
+					"path" : "/opt/openrobots/include"
+				},
+				{
+					"backtrace" : 2,
+					"isSystem" : true,
+					"path" : "/usr/local/include/eigen3"
+				}
+			],
+			"language" : "CXX",
+			"languageStandard" : 
+			{
+				"backtraces" : 
+				[
+					2
+				],
+				"standard" : "17"
+			},
+			"sourceIndexes" : 
+			[
+				0,
+				1
+			]
+		}
+	],
+	"id" : "aligator_cimpc::@6890427a1f51a3e7e1df",
+	"link" : 
+	{
+		"commandFragments" : 
+		[
+			{
+				"fragment" : "-O3 -DNDEBUG",
+				"role" : "flags"
+			},
+			{
+				"fragment" : "",
+				"role" : "flags"
+			},
+			{
+				"fragment" : "-Wl,-rpath,/usr/local/lib:/opt/openrobots/lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 2,
+				"fragment" : "/usr/local/lib/libaligator.so.0.10.0",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "/usr/local/lib/libaligator_gar.so.0.10.0",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "/usr/lib/gcc/x86_64-linux-gnu/11/libgomp.so",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "/usr/lib/x86_64-linux-gnu/libpthread.a",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "/usr/local/lib/libproxsuite-nlp.so.0.10.0",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "/opt/openrobots/lib/libpinocchio_parsers.so.3.3.0",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "/usr/lib/x86_64-linux-gnu/liburdfdom_sensor.so",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "/usr/lib/x86_64-linux-gnu/liburdfdom_model_state.so",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "/usr/lib/x86_64-linux-gnu/liburdfdom_model.so",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "/usr/lib/x86_64-linux-gnu/liburdfdom_world.so",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "/usr/lib/x86_64-linux-gnu/libconsole_bridge.so.1.0",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "/opt/openrobots/lib/libpinocchio_collision.so.3.3.0",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "/opt/openrobots/lib/libpinocchio_default.so.3.3.0",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "/opt/openrobots/lib/libcoal.so",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "/opt/openrobots/lib/libcoal.so",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "/usr/lib/x86_64-linux-gnu/libboost_filesystem.so",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "/usr/lib/x86_64-linux-gnu/libboost_serialization.so",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "/usr/lib/x86_64-linux-gnu/libboost_chrono.so",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "/usr/lib/x86_64-linux-gnu/liboctomap.so",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "/usr/lib/x86_64-linux-gnu/liboctomath.so",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "/usr/local/lib/libfmt.a",
+				"role" : "libraries"
+			}
+		],
+		"language" : "CXX"
+	},
+	"name" : "aligator_cimpc",
+	"nameOnDisk" : "aligator_cimpc",
+	"paths" : 
+	{
+		"build" : ".",
+		"source" : "."
+	},
+	"sourceGroups" : 
+	[
+		{
+			"name" : "Source Files",
+			"sourceIndexes" : 
+			[
+				0,
+				1
+			]
+		}
+	],
+	"sources" : 
+	[
+		{
+			"backtrace" : 1,
+			"compileGroupIndex" : 0,
+			"path" : "main.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 1,
+			"compileGroupIndex" : 0,
+			"path" : "CompliantContactFwdDynamics.cpp",
+			"sourceGroupIndex" : 0
+		}
+	],
+	"type" : "EXECUTABLE"
+}

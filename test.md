@@ -1,0 +1,1 @@
+This is described in state-space $\mathcal{X} = T\mathcal{Q}$(the phase space $x = (q,v)$) using the differential equation [ $\dot{x} = f(x, u) = \begin{bmatrix} v \\ a(q, v, \tau(u)) \end{bmatrix}$ ] where $\tau(u) = Bu$, $B$ is a given actuation matrix, and $a(q,v,\tau)$ is the acceleration computed from the ABA algorithm.
