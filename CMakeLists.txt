@@ -4,7 +4,7 @@ project(aligator_cimpc VERSION 0.1.0 LANGUAGES C CXX)
 find_package(aligator REQUIRED)
 find_package(pinocchio REQUIRED)
 
-add_executable(aligator_cimpc main.cpp CompliantContactFwdDynamics.cpp)
+add_executable(offline_test offline_test.cpp CompliantContactFwdDynamics.cpp)
 
-target_link_libraries(aligator_cimpc aligator::aligator)
-target_link_libraries(aligator_cimpc pinocchio::pinocchio)
+target_link_libraries(offline_test aligator::aligator)
+target_link_libraries(offline_test pinocchio::pinocchio)

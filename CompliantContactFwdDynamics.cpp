@@ -40,6 +40,38 @@ void CompliantContactFwdDynamics::forward(const ConstVectorRef &x, const ConstVe
 void CompliantContactFwdDynamics::dForward(const ConstVectorRef &x, const ConstVectorRef &u,
                                            ODEData &data) const
 {
+    // const double eps = 1e-6;
+    // const int nx = x.size();
+    // const int nu = u.size();
+    // const int nd = data.xdot_.size();
+
+    // // 计算基准输出 f(x,u)
+    // forward(x, u, data);
+    // VectorXd f0 = data.xdot_;
+
+    // // 初始化雅可比矩阵
+    // data.Jx_.resize(nd, nx);
+    // data.Ju_.resize(nd, nu);
+
+    // // 针对状态进行有限差分
+    // for (int i = 0; i < nx; i++)
+    // {
+    //     VectorXd x_pert = x;
+    //     x_pert(i) += eps;
+    //     auto dataPert = createData();
+    //     forward(x_pert, u, *dataPert);
+    //     data.Jx_.col(i) = (dataPert->xdot_ - f0) / eps;
+    // }
+
+    // // 针对控制进行有限差分
+    // for (int i = 0; i < nu; i++)
+    // {
+    //     VectorXd u_pert = u;
+    //     u_pert(i) += eps;
+    //     auto dataPert = createData();
+    //     forward(x, u_pert, *dataPert);
+    //     data.Ju_.col(i) = (dataPert->xdot_ - f0) / eps;
+    // }
 }
 
 void CompliantContactFwdDynamics::CalcContactForceContribution(const pin::Model &rmodel, const pin::Data &rdata,

@@ -4,10 +4,10 @@ import pandas as pd
 import time
 from pinocchio.visualize import MeshcatVisualizer
 
-csv_path = "/home/zishang/aligator_workspace/aligator_cimpc/build/aligator_cimpc.csv"
+csv_path = "/home/zishang/cpp_workspace/aligator_cimpc/build/offline_test1.csv"
 
 # 读取URDF文件和创建机器人模型
-urdf_path = "/home/zishang/pinocchio_idto_drake_simulator/pinocchio_idto/robot/mini_cheetah/mini_cheetah_ground.urdf"
+urdf_path = "/home/zishang/cpp_workspace/aligator_cimpc/robot/mini_cheetah/urdf/mini_cheetah_ground_mesh.urdf"
 model = pin.buildModelFromUrdf(urdf_path)
 visual_model = pin.buildGeomFromUrdf(model, urdf_path, pin.GeometryType.VISUAL)
 collision_model = pin.buildGeomFromUrdf(model, urdf_path, pin.GeometryType.COLLISION)
@@ -28,7 +28,7 @@ try:
         time.sleep(0.1)  # 可调整显示速度
         
 except FileNotFoundError:
-    print("找不到轨迹文件：trajectory_results.csv")
+    print("找不到轨迹文件")
 except Exception as e:
     print(f"发生错误：{str(e)}")
 
