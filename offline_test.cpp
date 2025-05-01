@@ -34,8 +34,9 @@ VectorXd calcNominalTorque(const pin::Model &model, const VectorXd &q_nom)
 }
 
 void computeFutureStates(const pin::Model &model,
-                         const VectorXd &v_ref,
+                         const double &vx,
                          const VectorXd &x0,
+                         double dt,
                          std::vector<VectorXd> &x_ref)
 {
     pin::Data data(model);
@@ -50,9 +51,8 @@ void computeFutureStates(const pin::Model &model,
 
     for (int i = 1; i < x_ref.size(); ++i)
     {
-
-        integrate(model, x_ref[i - 1].head(nq), x_ref[i - 1].tail(nv), x_ref[i].head(nq));
-        x_ref[i].tail(nv) = v_ref;
+        x_ref[i](0) = x_ref[i - 1](0) + vx * dt;
+        x_ref[i](nq) = vx;
     }
 }
 
@@ -158,8 +158,8 @@ int main(int argc, char const *argv[])
     CompliantContactParameter contact_param;
     CompliantContactFwdDynamics dynamics(space, actuation, geom_model, contact_param);
 
-    int nsteps = 100;
-    double timestep = 0.01;
+    int nsteps = 50;
+    double timestep = 0.02;
     const int nq = model.nq;
     const int nv = model.nv;
 
@@ -173,25 +173,26 @@ int main(int argc, char const *argv[])
         0.0, -0.8, 1.6;
 
     /************************reference state**********************/
-    VectorXd v_ref = VectorXd::Zero(nv); 
-    v_ref(0) = 0.01;
+    double vx = 0.5;
 
     std::vector<VectorXd> x_ref(nsteps, x0);
-    computeFutureStates(model, v_ref, x0, x_ref);
+    computeFutureStates(model, vx, x0, timestep, x_ref);
     VectorXd u_nom = calcNominalTorque(model, x0.head(nq));
     std::vector<VectorXd> u_ref(nsteps, u_nom);
 
     /************************print reference state**********************/
     std::cout << "Printing x_ref values:" << std::endl;
-    for (size_t i = 0; i < x_ref.size(); ++i) {
-        std::cout << "x_ref[" << i << "] = " << std::endl << x_ref[i].transpose() << std::endl;
+    for (size_t i = 0; i < x_ref.size(); ++i)
+    {
+        std::cout << "x_ref[" << i << "] = "
+                  << x_ref[i].transpose() << std::endl;
     }
     /************************create problem**********************/
     auto problem = createTrajOptProblem(dynamics, nsteps, timestep, x_ref, u_ref, x0);
     double tol = 1e-4;
-    int max_iters = 100;
+    int max_iters = 1000;
     double mu_init = 1e-8;
-    aligator::SolverProxDDPTpl<double> solver(tol, mu_init, max_iters, aligator::VerboseLevel::VERBOSE);
+    aligator::SolverProxDDPTpl<double> solver(tol, mu_init, max_iters, aligator::VerboseLevel::QUIET);
     std::vector<VectorXd> x_guess, u_guess;
     x_guess.assign(nsteps + 1, x0);
     u_guess.assign(nsteps, u_nom);
@@ -205,6 +206,41 @@ int main(int argc, char const *argv[])
     solver.run(*problem, x_guess, u_guess);
     saveVectorsToCsv("offline_test.csv", solver.results_.xs);
 
+    x_guess = solver.results_.xs;
+    u_guess = solver.results_.us;
+    solver.max_iters = 10;
+
+    /************************理想迭代**********************/
+    std::vector<VectorXd> x_log;
+    for (size_t i = 0; i < 100; i++)
+    {
+        // 更新期望状态
+        computeFutureStates(model, vx, x0, timestep, x_ref);
+        std::cout << "x_ref[0] = " << x_ref[0].transpose() << std::endl;
+        std::cout << "x_ref[end] = " << x_ref.back().transpose() << std::endl;
+        updateStateReferences(problem, x_ref);
+
+        // 更新当前位置
+        problem->setInitState(x0);
+
+        // 求解
+        solver.run(*problem, x_guess, u_guess);
+
+        // 更新位置
+        x0 = solver.results_.xs[1];
+
+        // 更新warm start
+        x_guess = solver.results_.xs;
+        u_guess = solver.results_.us;
+        x_guess.erase(x_guess.begin());
+        x_guess[0] = x0;
+        x_guess.push_back(x_guess.back());
+        u_guess.erase(u_guess.begin());
+        u_guess.push_back(u_guess.back());
+
+        x_log.push_back(x0);
+    }
+    saveVectorsToCsv("idea_sim.csv", x_log);
 
     return 0;
 }
