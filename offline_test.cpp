@@ -106,7 +106,7 @@ std::shared_ptr<TrajOptProblem> createTrajOptProblem(const CompliantContactFwdDy
     w_u.diagonal().array() = 1e-4;
 
     IntegratorSemiImplEuler discrete_dyn = IntegratorSemiImplEuler(dynamics, timestep);
-    DynamicsFiniteDifference finite_diff_dyn(space, discrete_dyn, 1e-8);
+    DynamicsFiniteDifference finite_diff_dyn(space, discrete_dyn, 1e-6);
     // DynamicsFiniteDifference finite_diff_dyn(space, discrete_dyn, timestep);
 
     std::vector<xyz::polymorphic<StageModel>> stage_models;
@@ -189,8 +189,8 @@ int main(int argc, char const *argv[])
     /************************create problem**********************/
     auto problem = createTrajOptProblem(dynamics, nsteps, timestep, x_ref, u_ref, x0);
     double tol = 1e-4;
-    int max_iters = 1000;
-    double mu_init = 1e-6;
+    int max_iters = 100;
+    double mu_init = 1e-8;
     aligator::SolverProxDDPTpl<double> solver(tol, mu_init, max_iters, aligator::VerboseLevel::VERBOSE);
     std::vector<VectorXd> x_guess, u_guess;
     x_guess.assign(nsteps + 1, x0);
@@ -198,9 +198,6 @@ int main(int argc, char const *argv[])
     solver.rollout_type_ = aligator::RolloutType::LINEAR;
     solver.force_initial_condition_ = true;
     solver.linear_solver_choice = aligator::LQSolverChoice::PARALLEL;
-    solver.sa_strategy_ = aligator::StepAcceptanceStrategy::LINESEARCH_NONMONOTONE;
-    solver.filter_.beta_ = 1e-5;
-    solver.reg_min = 1e-6;
     solver.setNumThreads(8);
     solver.setup(*problem);
 
