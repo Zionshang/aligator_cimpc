@@ -10,6 +10,7 @@
 #include <aligator/modelling/dynamics/integrator-euler.hpp>
 #include <fstream>
 
+#include <pinocchio/algorithm/rnea.hpp>
 #include "CompliantContactFwdDynamics.hpp"
 #include "logger.hpp"
 
@@ -23,10 +24,43 @@ using QuadraticStateCost = aligator::QuadraticStateCostTpl<double>;
 using QuadraticControlCost = aligator::QuadraticControlCostTpl<double>;
 using DynamicsFiniteDifference = aligator::autodiff::DynamicsFiniteDifferenceHelper<double>;
 
+VectorXd calcNominalTorque(const pin::Model &model, const VectorXd &q_nom)
+{
+    int nq = model.nq;
+    int nv = model.nv;
+    pin::Data data(model);
+    pin::rnea(model, data, q_nom, VectorXd::Zero(nv), VectorXd::Zero(nv));
+    return data.tau.tail(nv - 6);
+}
+
+void computeFutureStates(const pin::Model &model,
+                         const VectorXd &v_ref,
+                         const VectorXd &x0,
+                         std::vector<VectorXd> &x_ref)
+{
+    pin::Data data(model);
+
+    int nq = model.nq;
+    int nv = model.nv;
+
+    VectorXd q = x0.head(nq);
+    VectorXd v = x0.tail(nv);
+
+    x_ref[0] = x0;
+
+    for (int i = 1; i < x_ref.size(); ++i)
+    {
+
+        integrate(model, x_ref[i - 1].head(nq), x_ref[i - 1].tail(nv), x_ref[i].head(nq));
+        x_ref[i].tail(nv) = v_ref;
+    }
+}
+
 std::shared_ptr<TrajOptProblem> createTrajOptProblem(const CompliantContactFwdDynamics &dynamics,
                                                      int nsteps, double timestep,
                                                      const std::vector<VectorXd> &x_ref,
-                                                     const VectorXd &x0, const VectorXd &u0)
+                                                     const std::vector<VectorXd> &u_ref,
+                                                     const VectorXd &x0)
 {
     const auto space = dynamics.space();
     const int nu = dynamics.nu(); // Number of control inputs
@@ -75,21 +109,15 @@ std::shared_ptr<TrajOptProblem> createTrajOptProblem(const CompliantContactFwdDy
     DynamicsFiniteDifference finite_diff_dyn(space, discrete_dyn, 1e-8);
     // DynamicsFiniteDifference finite_diff_dyn(space, discrete_dyn, timestep);
 
-    VectorXd u_ref(nu);
-    // u_ref << 0.16370625, 0.42056475, -3.06492254,
-    //     0.16861717, 0.14882384, -2.43250739,
-    //     0.08305763, 0.26016952, -2.74586461,
-    //     0.08721941, 0.02331732, -2.18319231;
-    u_ref.setZero();
     std::vector<xyz::polymorphic<StageModel>> stage_models;
     for (size_t i = 0; i < nsteps; i++)
     {
         auto rcost = CostStack(space, nu);
         rcost.addCost("state_cost", QuadraticStateCost(space, nu, x_ref[i], w_x));
-        rcost.addCost("control_cost", QuadraticControlCost(space, u_ref, w_u));
+        rcost.addCost("control_cost", QuadraticControlCost(space, u_ref[i], w_u));
 
-        // stage_models.push_back(StageModel(rcost, discrete_dyn));
-        stage_models.push_back(StageModel(rcost, finite_diff_dyn));
+        StageModel sm = StageModel(rcost, finite_diff_dyn);
+        stage_models.push_back(std::move(sm));
     }
 
     auto term_cost = CostStack(space, nu);
@@ -118,26 +146,25 @@ int main(int argc, char const *argv[])
     std::string urdf_filename = "/home/zishang/cpp_workspace/aligator_cimpc/robot/mini_cheetah/urdf/mini_cheetah_ground.urdf";
     std::string srdf_filename = "/home/zishang/cpp_workspace/aligator_cimpc/robot/mini_cheetah/srdf/mini_cheetah.srdf";
 
-    pin::Model rmodel;
+    pin::Model model;
     pin::GeometryModel geom_model;
-    pin::urdf::buildModel(urdf_filename, rmodel);
-    pin::urdf::buildGeom(rmodel, urdf_filename, pinocchio::COLLISION, geom_model);
+    pin::urdf::buildModel(urdf_filename, model);
+    pin::urdf::buildGeom(model, urdf_filename, pinocchio::COLLISION, geom_model);
     geom_model.addAllCollisionPairs();
-    pin::srdf::removeCollisionPairs(rmodel, geom_model, srdf_filename);
-    MultibodyPhaseSpace space(rmodel);
-    MatrixXd actuation = MatrixXd::Zero(rmodel.nv, 12);
+    pin::srdf::removeCollisionPairs(model, geom_model, srdf_filename);
+    MultibodyPhaseSpace space(model);
+    MatrixXd actuation = MatrixXd::Zero(model.nv, 12);
     actuation.bottomRows(12).setIdentity();
     CompliantContactParameter contact_param;
     CompliantContactFwdDynamics dynamics(space, actuation, geom_model, contact_param);
 
     int nsteps = 100;
-    double timestep = 0.05;
-    const int nq = rmodel.nq;
-    const int nv = rmodel.nv;
+    double timestep = 0.01;
+    const int nq = model.nq;
+    const int nv = model.nv;
 
     /************************initial state**********************/
     VectorXd x0 = VectorXd::Zero(nq + nv);
-    VectorXd u0 = VectorXd::Zero(dynamics.nu());
     x0.head(nq) << 0.0, 0.0, 0.29,
         0.0, 0.0, 0.0, 1.0,
         0.0, -0.8, 1.6,
@@ -146,35 +173,32 @@ int main(int argc, char const *argv[])
         0.0, -0.8, 1.6;
 
     /************************reference state**********************/
-    VectorXd x_term = VectorXd::Zero(nq + nv);
-    x_term.head(nq) << 0.5, 0.0, 0.29,
-        0.0, 0.0, 0.0, 1.0,
-        0.0, -0.8, 1.6,
-        0.0, -0.8, 1.6,
-        0.0, -0.8, 1.6,
-        0.0, -0.8, 1.6;
+    VectorXd v_ref = VectorXd::Zero(nv); 
+    v_ref(0) = 0.01;
 
-    std::vector<VectorXd> x_ref(nsteps, x_term);
-    for (int i = 0; i < nsteps; i++)
-    {
-        double alpha = static_cast<double>(i) / (nsteps - 1);
-        x_ref[i] = (1 - alpha) * x0 + alpha * x_term;
-        std::cout << x_ref[i].transpose() << std::endl;
+    std::vector<VectorXd> x_ref(nsteps, x0);
+    computeFutureStates(model, v_ref, x0, x_ref);
+    VectorXd u_nom = calcNominalTorque(model, x0.head(nq));
+    std::vector<VectorXd> u_ref(nsteps, u_nom);
+
+    /************************print reference state**********************/
+    std::cout << "Printing x_ref values:" << std::endl;
+    for (size_t i = 0; i < x_ref.size(); ++i) {
+        std::cout << "x_ref[" << i << "] = " << std::endl << x_ref[i].transpose() << std::endl;
     }
-
     /************************create problem**********************/
-    auto problem = createTrajOptProblem(dynamics, nsteps, timestep, x_ref, x0, u0);
+    auto problem = createTrajOptProblem(dynamics, nsteps, timestep, x_ref, u_ref, x0);
     double tol = 1e-4;
-    int max_iters = 100;
-    double mu_init = 1e-8;
+    int max_iters = 1000;
+    double mu_init = 1e-6;
     aligator::SolverProxDDPTpl<double> solver(tol, mu_init, max_iters, aligator::VerboseLevel::VERBOSE);
     std::vector<VectorXd> x_guess, u_guess;
     x_guess.assign(nsteps + 1, x0);
-    u_guess.assign(nsteps, u0);
+    u_guess.assign(nsteps, u_nom);
     solver.rollout_type_ = aligator::RolloutType::LINEAR;
     solver.force_initial_condition_ = true;
     solver.linear_solver_choice = aligator::LQSolverChoice::PARALLEL;
-    solver.sa_strategy_ = aligator::StepAcceptanceStrategy::FILTER;
+    solver.sa_strategy_ = aligator::StepAcceptanceStrategy::LINESEARCH_NONMONOTONE;
     solver.filter_.beta_ = 1e-5;
     solver.reg_min = 1e-6;
     solver.setNumThreads(8);
@@ -182,18 +206,8 @@ int main(int argc, char const *argv[])
 
     /************************first solve**********************/
     solver.run(*problem, x_guess, u_guess);
-    saveVectorsToCsv("offline_test1.csv", solver.results_.xs);
+    saveVectorsToCsv("offline_test.csv", solver.results_.xs);
 
-    // /************************second solve**********************/
-    // x_guess = solver.results_.xs;
-    // u_guess = solver.results_.us;
-    // std::cout << "----------------------warm start----------------------" << std::endl;
-    // updateStateReferences(problem, x_ref);
-    // solver.max_iters = 100;
-    // solver.run(*problem, x_guess, u_guess);
-
-    // std::vector<VectorXd> x_result = solver.results_.xs;
-    // saveVectorsToCsv("offline_test2.csv", x_result);
 
     return 0;
 }
