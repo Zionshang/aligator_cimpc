@@ -127,7 +127,6 @@ void CalcContactForce(const Model &model, const Data &data,
                 dissipation_factor = 1 - s;
             else if (s < 2)
                 dissipation_factor = (s - 2) * (s - 2) / 4;
-            std::cout << "s: " << s << std::endl;
             const double fn = compliant_fn * dissipation_factor;
 
             // Tangential frictional component.
