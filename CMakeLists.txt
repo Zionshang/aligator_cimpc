@@ -12,9 +12,9 @@ target_link_libraries(offline_test aligator::aligator)
 target_link_libraries(offline_test pinocchio::pinocchio)
 
 
-# add_executable(cppad_test test/cppad_test.cpp)
-# target_link_libraries(cppad_test aligator::aligator
-#     pinocchio::pinocchio)
+add_executable(cppad_test test/cppad_test.cpp)
+target_link_libraries(cppad_test aligator::aligator
+    pinocchio::pinocchio)
 
 add_executable(contact_test test/contact_test.cpp)
 target_link_libraries(contact_test aligator::aligator
