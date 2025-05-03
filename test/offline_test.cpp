@@ -6,11 +6,13 @@
 #include <aligator/modelling/dynamics/integrator-semi-euler.hpp>
 #include <aligator/solvers/proxddp/solver-proxddp.hpp>
 #include <aligator/modelling/autodiff/finite-difference.hpp>
+#include <aligator/modelling/autodiff/cost-finite-difference.hpp>
 #include <aligator/modelling/dynamics/integrator-euler.hpp>
 #include <fstream>
 
 #include <pinocchio/algorithm/rnea.hpp>
 #include "contact_fwd_dynamics.hpp"
+#include "foot_slip_clearance_cost.hpp"
 #include "logger.hpp"
 #include "yaml_loader.hpp"
 
@@ -21,6 +23,7 @@ using IntegratorEuler = aligator::dynamics::IntegratorEulerTpl<double>;
 using CostStack = aligator::CostStackTpl<double>;
 using QuadraticStateCost = aligator::QuadraticStateCostTpl<double>;
 using QuadraticControlCost = aligator::QuadraticControlCostTpl<double>;
+using CostFiniteDifference = aligator::autodiff::CostFiniteDifferenceHelper<double>;
 
 std::string yaml_filename = "/home/zishang/cpp_workspace/aligator_cimpc/config/parameters.yaml";
 YamlLoader yaml_loader(yaml_filename);
@@ -101,11 +104,15 @@ std::shared_ptr<TrajOptProblem> createTrajOptProblem(const ContactFwdDynamics &d
     IntegratorSemiImplEuler discrete_dyn = IntegratorSemiImplEuler(dynamics, timestep);
 
     std::vector<xyz::polymorphic<StageModel>> stage_models;
+    FootSlipClearanceCost fscc(space, nu, 1.0, -30.0);
+    CostFiniteDifference fscc_fini_diff(fscc, 1e-6);
+
     for (size_t i = 0; i < nsteps; i++)
     {
         auto rcost = CostStack(space, nu);
         rcost.addCost("state_cost", QuadraticStateCost(space, nu, x_ref[i], w_x));
         rcost.addCost("control_cost", QuadraticControlCost(space, u_ref[i], w_u));
+        rcost.addCost("foot_slip_clearance_cost", fscc_fini_diff);
 
         StageModel sm = StageModel(rcost, discrete_dyn);
         stage_models.push_back(std::move(sm));

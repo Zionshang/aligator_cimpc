@@ -8,7 +8,8 @@ include_directories(include)
 
 add_executable(offline_test test/offline_test.cpp
     src/contact_force.cpp
-    src/contact_fwd_dynamics.cpp)
+    src/contact_fwd_dynamics.cpp
+    src/foot_slip_clearance_cost.cpp)
 
 target_link_libraries(offline_test aligator::aligator
     pinocchio::pinocchio
