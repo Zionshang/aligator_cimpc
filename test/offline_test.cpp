@@ -31,7 +31,8 @@ VectorXd calcNominalTorque(const Model &model, const VectorXd &q_nom)
     int nv = model.nv;
     Data data(model);
     pinocchio::rnea(model, data, q_nom, VectorXd::Zero(nv), VectorXd::Zero(nv));
-    return data.tau.tail(nv - 6);
+    // return data.tau.tail(nv - 6);
+    return VectorXd::Zero(nv - 6);
 }
 
 void computeFutureStates(const Model &model,
@@ -199,6 +200,8 @@ int main(int argc, char const *argv[])
     /************************理想迭代**********************/
     std::vector<VectorXd> x_log;
     ContactFwdDynamicsData dyn_data(dynamics); // 用于打印当前地面接触力
+    VectorXd contact_forces = VectorXd::Zero(12);
+    std::vector<VectorXd> contact_forces_log;
     std::cout << std::fixed << std::setprecision(2);
     for (size_t i = 0; i < 200; i++)
     {
@@ -230,13 +233,17 @@ int main(int argc, char const *argv[])
         x_log.push_back(x0);
 
         dynamics.forward(solver.results_.xs[0], solver.results_.us[0], dyn_data);
-        for (const auto &force : dyn_data.contact_forces_)
+        for (size_t i = 0; i < 4; i++)
         {
+            const auto &force = dyn_data.contact_forces_[i];
             std::cout << force.transpose() << "  ";
+            contact_forces.segment(i * 3, 3) = force;
         }
         std::cout << std::endl;
+        contact_forces_log.push_back(contact_forces);
     }
     saveVectorsToCsv("idea_sim.csv", x_log);
+    saveVectorsToCsv("idea_sim_contact_forces.csv", contact_forces_log);
 
     return 0;
 }

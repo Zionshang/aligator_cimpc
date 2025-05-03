@@ -1,0 +1,46 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+def plot_leg_forces(csv_file):
+    # 读取 CSV 文件
+    data = np.loadtxt(csv_file, delimiter=",")
+
+    # Z 向力（列 2, 5, 8, 11）
+    fz_0 = data[:, 2]
+    fz_1 = data[:, 5]
+    fz_2 = data[:, 8]
+    fz_3 = data[:, 11]
+
+    # X 向力（列 0, 3, 6, 9）
+    fx_0 = data[:, 0]
+    fx_1 = data[:, 3]
+    fx_2 = data[:, 6]
+    fx_3 = data[:, 9]
+    fx_total = fx_0 + fx_1 + fx_2 + fx_3
+
+    # 第一个窗口：Z 方向力
+    plt.figure()
+    plt.plot(fz_0, label="Leg 0 Z-force")
+    plt.plot(fz_1, label="Leg 1 Z-force")
+    plt.plot(fz_2, label="Leg 2 Z-force")
+    plt.plot(fz_3, label="Leg 3 Z-force")
+    plt.title("Z-direction Contact Forces per Leg")
+    plt.xlabel("Time Step")
+    plt.ylabel("Z Force (N)")
+    plt.legend()
+    plt.grid(True)
+
+    # 第二个窗口：X 方向合力
+    plt.figure()
+    plt.plot(fx_total, label="Total X-force")
+    plt.title("Total X-direction Force")
+    plt.xlabel("Time Step")
+    plt.ylabel("X Force (N)")
+    plt.legend()
+    plt.grid(True)
+
+    # 显示所有窗口
+    plt.show()
+
+# 调用方式：
+plot_leg_forces("/home/zishang/cpp_workspace/aligator_cimpc/build/idea_sim_contact_forces.csv")
