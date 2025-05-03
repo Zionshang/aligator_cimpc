@@ -79,11 +79,17 @@ std::shared_ptr<TrajOptProblem> createTrajOptProblem(const ContactFwdDynamics &d
 
     // Define stage state weights
     VectorXd w_x_diag(ndx);
-    w_x_diag << yaml_loader.w_pos, yaml_loader.w_vel;
+    w_x_diag << yaml_loader.w_pos_body,
+        yaml_loader.w_pos_leg, yaml_loader.w_pos_leg, yaml_loader.w_pos_leg, yaml_loader.w_pos_leg,
+        yaml_loader.w_vel_body,
+        yaml_loader.w_vel_leg, yaml_loader.w_vel_leg, yaml_loader.w_vel_leg, yaml_loader.w_vel_leg;
     MatrixXd w_x = w_x_diag.asDiagonal();
 
     // Define terminal state weights
-    w_x_diag << yaml_loader.w_pos_term, yaml_loader.w_vel_term;
+    w_x_diag << yaml_loader.w_pos_body_term,
+        yaml_loader.w_pos_leg_term, yaml_loader.w_pos_leg_term, yaml_loader.w_pos_leg_term, yaml_loader.w_pos_leg_term,
+        yaml_loader.w_vel_body_term,
+        yaml_loader.w_vel_leg_term, yaml_loader.w_vel_leg_term, yaml_loader.w_vel_leg_term, yaml_loader.w_vel_leg_term;
     MatrixXd w_x_term = w_x_diag.asDiagonal();
 
     // Define input state weights
