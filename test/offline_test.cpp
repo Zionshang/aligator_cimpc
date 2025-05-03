@@ -8,6 +8,9 @@
 #include <aligator/modelling/autodiff/finite-difference.hpp>
 #include <aligator/modelling/autodiff/cost-finite-difference.hpp>
 #include <aligator/modelling/dynamics/integrator-euler.hpp>
+#include <aligator/modelling/state-error.hpp>
+#include <proxsuite-nlp/modelling/constraints/box-constraint.hpp>
+
 #include <fstream>
 
 #include <pinocchio/algorithm/rnea.hpp>
@@ -24,6 +27,8 @@ using CostStack = aligator::CostStackTpl<double>;
 using QuadraticStateCost = aligator::QuadraticStateCostTpl<double>;
 using QuadraticControlCost = aligator::QuadraticControlCostTpl<double>;
 using CostFiniteDifference = aligator::autodiff::CostFiniteDifferenceHelper<double>;
+using ControlErrorResidual = aligator::ControlErrorResidualTpl<double>;
+using BoxConstraint = proxsuite::nlp::BoxConstraintTpl<double>;
 
 std::string yaml_filename = "/home/zishang/cpp_workspace/aligator_cimpc/config/parameters.yaml";
 YamlLoader yaml_loader(yaml_filename);
@@ -106,6 +111,8 @@ std::shared_ptr<TrajOptProblem> createTrajOptProblem(const ContactFwdDynamics &d
     std::vector<xyz::polymorphic<StageModel>> stage_models;
     FootSlipClearanceCost fscc(space, nu, yaml_loader.w_foot_slip_clearance, -30.0);
     CostFiniteDifference fscc_fini_diff(fscc, 1e-6);
+    ControlErrorResidual control_error(space.ndx(), nu);
+    VectorXd u_max = space.getModel().effortLimit.tail(nu);
 
     for (size_t i = 0; i < nsteps; i++)
     {
@@ -115,6 +122,8 @@ std::shared_ptr<TrajOptProblem> createTrajOptProblem(const ContactFwdDynamics &d
         rcost.addCost("foot_slip_clearance_cost", fscc_fini_diff);
 
         StageModel sm = StageModel(rcost, discrete_dyn);
+
+        sm.addConstraint(control_error, BoxConstraint(-u_max, u_max));
         stage_models.push_back(std::move(sm));
     }
 
@@ -205,7 +214,7 @@ int main(int argc, char const *argv[])
     solver.max_iters = yaml_loader.max_iter;
 
     /************************理想迭代**********************/
-    std::vector<VectorXd> x_log;
+    std::vector<VectorXd> x_log, u_log;
     ContactFwdDynamicsData dyn_data(dynamics); // 用于打印当前地面接触力
     VectorXd contact_forces = VectorXd::Zero(12);
     std::vector<VectorXd> contact_forces_log;
@@ -238,7 +247,7 @@ int main(int argc, char const *argv[])
         u_guess.push_back(u_guess.back());
 
         x_log.push_back(x0);
-
+        u_log.push_back(solver.results_.us[0]);
         dynamics.forward(solver.results_.xs[0], solver.results_.us[0], dyn_data);
         for (size_t i = 0; i < 4; i++)
         {
@@ -249,7 +258,8 @@ int main(int argc, char const *argv[])
         std::cout << std::endl;
         contact_forces_log.push_back(contact_forces);
     }
-    saveVectorsToCsv("idea_sim.csv", x_log);
+    saveVectorsToCsv("idea_sim_x.csv", x_log);
+    saveVectorsToCsv("idea_sim_u.csv", u_log);
     saveVectorsToCsv("idea_sim_contact_forces.csv", contact_forces_log);
 
     return 0;
