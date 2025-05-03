@@ -12,6 +12,7 @@
 #include <pinocchio/algorithm/rnea.hpp>
 #include "contact_fwd_dynamics.hpp"
 #include "logger.hpp"
+#include "yaml_loader.hpp"
 
 using aligator::context::TrajOptProblem;
 using StageModel = aligator::StageModelTpl<double>;
@@ -20,6 +21,9 @@ using IntegratorEuler = aligator::dynamics::IntegratorEulerTpl<double>;
 using CostStack = aligator::CostStackTpl<double>;
 using QuadraticStateCost = aligator::QuadraticStateCostTpl<double>;
 using QuadraticControlCost = aligator::QuadraticControlCostTpl<double>;
+
+std::string yaml_filename = "/home/zishang/cpp_workspace/aligator_cimpc/config/parameters.yaml";
+YamlLoader yaml_loader(yaml_filename);
 
 VectorXd calcNominalTorque(const Model &model, const VectorXd &q_nom)
 {
@@ -64,43 +68,18 @@ std::shared_ptr<TrajOptProblem> createTrajOptProblem(const ContactFwdDynamics &d
     const int ndx = space.ndx();  // Number of state variables
 
     // Define stage state weights
-    VectorXd w_pos_diag = VectorXd::Zero(space.getModel().nv);
-    VectorXd w_vel_diag = VectorXd::Zero(space.getModel().nv);
-    w_pos_diag << 10, 10, 10, // linear part
-        1, 1, 1,              // angular part
-        0, 0, 0,              // leg part
-        0, 0, 0,
-        0, 0, 0,
-        0, 0, 0;
-    w_vel_diag << 1, 1, 1, // linear part
-        1, 1, 1,           // angular part
-        0.1, 0.1, 0.1,     // leg part
-        0.1, 0.1, 0.1,
-        0.1, 0.1, 0.1,
-        0.1, 0.1, 0.1;
-    VectorXd w_x_diag = VectorXd::Zero(ndx);
-    w_x_diag << w_pos_diag, w_vel_diag;
+    VectorXd w_x_diag(ndx);
+    w_x_diag << yaml_loader.w_pos, yaml_loader.w_vel;
     MatrixXd w_x = w_x_diag.asDiagonal();
 
     // Define terminal state weights
-    w_pos_diag << 10, 10, 10,
-        10, 10, 10,
-        1, 1, 1,
-        1, 1, 1,
-        1, 1, 1,
-        1, 1, 1;
-    w_vel_diag << 1, 1, 1,
-        1, 1, 1,
-        0.1, 0.1, 0.1,
-        0.1, 0.1, 0.1,
-        0.1, 0.1, 0.1,
-        0.1, 0.1, 0.1;
-    w_x_diag << w_pos_diag, w_vel_diag;
+    w_x_diag << yaml_loader.w_pos_term, yaml_loader.w_vel_term;
     MatrixXd w_x_term = w_x_diag.asDiagonal();
 
     // Define input state weights
-    MatrixXd w_u = MatrixXd::Identity(nu, nu);
-    w_u.diagonal().array() = 1e-4;
+    VectorXd w_u_diag(nu);
+    w_u_diag << yaml_loader.w_u_leg, yaml_loader.w_u_leg, yaml_loader.w_u_leg, yaml_loader.w_u_leg;
+    MatrixXd w_u = w_u_diag.asDiagonal();
 
     IntegratorSemiImplEuler discrete_dyn = IntegratorSemiImplEuler(dynamics, timestep);
 
@@ -171,12 +150,12 @@ int main(int argc, char const *argv[])
     std::vector<VectorXd> u_ref(nsteps, u_nom);
 
     /************************print reference state**********************/
-    std::cout << "Printing x_ref values:" << std::endl;
-    for (size_t i = 0; i < x_ref.size(); ++i)
-    {
-        std::cout << "x_ref[" << i << "] = "
-                  << x_ref[i].transpose() << std::endl;
-    }
+    // std::cout << "Printing x_ref values:" << std::endl;
+    // for (size_t i = 0; i < x_ref.size(); ++i)
+    // {
+    //     std::cout << "x_ref[" << i << "] = "
+    //               << x_ref[i].transpose() << std::endl;
+    // }
     /************************create problem**********************/
     auto problem = createTrajOptProblem(dynamics, nsteps, timestep, x_ref, u_ref, x0);
     double tol = 1e-4;
@@ -204,7 +183,7 @@ int main(int argc, char const *argv[])
     std::vector<VectorXd> x_log;
     ContactFwdDynamicsData dyn_data(dynamics); // 用于打印当前地面接触力
     std::cout << std::fixed << std::setprecision(2);
-    for (size_t i = 0; i < 1000; i++)
+    for (size_t i = 0; i < 200; i++)
     {
         // 更新期望状态
         computeFutureStates(model, vx, x0, timestep, x_ref);

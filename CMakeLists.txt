@@ -10,8 +10,9 @@ add_executable(offline_test test/offline_test.cpp
     src/contact_force.cpp
     src/contact_fwd_dynamics.cpp)
 
-target_link_libraries(offline_test aligator::aligator)
-target_link_libraries(offline_test pinocchio::pinocchio)
+target_link_libraries(offline_test aligator::aligator
+    pinocchio::pinocchio
+    yaml-cpp)
 
 
 add_executable(cppad_test test/cppad_test.cpp)
