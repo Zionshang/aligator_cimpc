@@ -202,12 +202,14 @@ int main(int argc, char const *argv[])
 
     /************************理想迭代**********************/
     std::vector<VectorXd> x_log;
+    ContactFwdDynamicsData dyn_data(dynamics); // 用于打印当前地面接触力
+    std::cout << std::fixed << std::setprecision(2);
     for (size_t i = 0; i < 1000; i++)
     {
         // 更新期望状态
         computeFutureStates(model, vx, x0, timestep, x_ref);
-        std::cout << "x_ref[0] = " << x_ref[0].transpose() << std::endl;
-        std::cout << "x_ref[end] = " << x_ref.back().transpose() << std::endl;
+        // std::cout << "x_ref[0] = " << x_ref[0].transpose() << std::endl;
+        // std::cout << "x_ref[end] = " << x_ref.back().transpose() << std::endl;
         updateStateReferences(problem, x_ref);
 
         // 更新当前位置
@@ -229,6 +231,13 @@ int main(int argc, char const *argv[])
         u_guess.push_back(u_guess.back());
 
         x_log.push_back(x0);
+
+        dynamics.forward(solver.results_.xs[0], solver.results_.us[0], dyn_data);
+        for (const auto &force : dyn_data.contact_forces_)
+        {
+            std::cout << force.transpose() << "  ";
+        }
+        std::cout << std::endl;
     }
     saveVectorsToCsv("idea_sim.csv", x_log);
 

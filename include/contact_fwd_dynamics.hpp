@@ -46,4 +46,5 @@ struct ContactFwdDynamicsData : ContinuousDynamicsData
     Data data_;
     MatrixXd dtau_du_;
     CppAD::ADFun<double> ad_fwd_dynamics_;
+    std::vector<Vector3d> contact_forces_; // 仅仅用于记录数据便于debug
 };

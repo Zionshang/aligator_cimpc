@@ -29,7 +29,8 @@ void ContactFwdDynamics::forward(const ConstVectorRef &x, const ConstVectorRef &
     pinocchio::forwardKinematics(model, d.data_, q, v);
     pinocchio::updateFramePlacements(model, d.data_);
     aligned_vector<pinocchio::Force> f_ext(model.njoints, pinocchio::Force::Zero()); // todo: 删除临时变量
-    CalcContactForceContribution(model, d.data_, f_ext);
+    // CalcContactForceContribution(model, d.data_, f_ext);
+    CalcContactForceContribution(model, d.data_, f_ext, d.contact_forces_);
 
     data.xdot_.head(nv) = v;
     data.xdot_.segment(nv, nv) = pinocchio::aba(model, d.data_, q, v, d.tau_, f_ext);
@@ -95,4 +96,6 @@ ContactFwdDynamicsData::ContactFwdDynamicsData(const ContactFwdDynamics &dynamic
     CalcContactForceContributionAD(ad_model, ad_data, ad_f_ext);
     ad_Y = pinocchio::aba(ad_model, ad_data, ad_q_plus, ad_X.segment(nq, nv), ad_X.segment(nq + nv, nv), ad_f_ext);
     ad_fwd_dynamics_.Dependent(ad_X, ad_Y);
+
+    contact_forces_.assign(4, Vector3d::Zero());
 }
