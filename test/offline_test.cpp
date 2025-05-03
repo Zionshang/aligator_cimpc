@@ -57,6 +57,16 @@ void computeFutureStates(const Model &model,
     }
 }
 
+void computeFutureStates(const double &dx,
+                         const VectorXd &x0,
+                         std::vector<VectorXd> &x_ref)
+{
+    for (int i = 0; i < x_ref.size(); ++i)
+    {
+        x_ref[i](0) = x0(0) + dx;
+    }
+}
+
 std::shared_ptr<TrajOptProblem> createTrajOptProblem(const ContactFwdDynamics &dynamics,
                                                      int nsteps, double timestep,
                                                      const std::vector<VectorXd> &x_ref,
@@ -129,8 +139,8 @@ int main(int argc, char const *argv[])
     actuation.bottomRows(nu).setIdentity();
     ContactFwdDynamics dynamics(space, actuation);
 
-    int nsteps = 50;
-    double timestep = 0.01;
+    int nsteps = yaml_loader.nsteps;
+    double timestep = yaml_loader.timestep;
 
     /************************initial state**********************/
     VectorXd x0 = VectorXd::Zero(nq + nv);
@@ -145,7 +155,8 @@ int main(int argc, char const *argv[])
     double vx = 0.5;
 
     std::vector<VectorXd> x_ref(nsteps, x0);
-    computeFutureStates(model, vx, x0, timestep, x_ref);
+    // computeFutureStates(model, vx, x0, timestep, x_ref);
+    computeFutureStates(0.5, x0, x_ref);
     VectorXd u_nom = calcNominalTorque(model, x0.head(nq));
     std::vector<VectorXd> u_ref(nsteps, u_nom);
 
@@ -186,7 +197,8 @@ int main(int argc, char const *argv[])
     for (size_t i = 0; i < 200; i++)
     {
         // 更新期望状态
-        computeFutureStates(model, vx, x0, timestep, x_ref);
+        // computeFutureStates(model, vx, x0, timestep, x_ref);
+        computeFutureStates(0.5, x0, x_ref);
         // std::cout << "x_ref[0] = " << x_ref[0].transpose() << std::endl;
         // std::cout << "x_ref[end] = " << x_ref.back().transpose() << std::endl;
         updateStateReferences(problem, x_ref);

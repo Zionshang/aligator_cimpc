@@ -13,6 +13,8 @@ struct YamlLoader
     Eigen::VectorXd w_pos_term;
     Eigen::VectorXd w_vel_term;
     Eigen::VectorXd w_u_leg;
+    int nsteps;
+    double timestep;
 
     YamlLoader(const std::string &filepath)
     {
@@ -26,11 +28,16 @@ struct YamlLoader
             w_vel_term = yamlSequenceToEigen(config["w_vel_term"]);
             w_u_leg = yamlSequenceToEigen(config["w_u_leg"]);
 
+            nsteps = config["nsteps"].as<int>();
+            timestep = config["timestep"].as<double>();
+
             std::cout << "w_pos: " << w_pos.transpose() << std::endl;
             std::cout << "w_vel: " << w_vel.transpose() << std::endl;
             std::cout << "w_pos_term: " << w_pos_term.transpose() << std::endl;
             std::cout << "w_vel_term: " << w_vel_term.transpose() << std::endl;
             std::cout << "w_u_leg: " << w_u_leg.transpose() << std::endl;
+            std::cout << "nsteps: " << nsteps << std::endl;
+            std::cout << "timestep: " << timestep << std::endl;
         }
         catch (const std::exception &e)
         {
