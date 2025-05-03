@@ -1,6 +1,5 @@
 #include <aligator/core/traj-opt-problem.hpp>
 #include <pinocchio/parsers/urdf.hpp>
-#include <pinocchio/parsers/srdf.hpp>
 
 #include <aligator/modelling/costs/sum-of-costs.hpp>
 #include <aligator/modelling/costs/quad-state-cost.hpp>
@@ -11,10 +10,9 @@
 #include <fstream>
 
 #include <pinocchio/algorithm/rnea.hpp>
-#include "CompliantContactFwdDynamics.hpp"
+#include "contact_fwd_dynamics.hpp"
 #include "logger.hpp"
 
-namespace pin = pinocchio;
 using aligator::context::TrajOptProblem;
 using StageModel = aligator::StageModelTpl<double>;
 using IntegratorSemiImplEuler = aligator::dynamics::IntegratorSemiImplEulerTpl<double>;
@@ -22,24 +20,23 @@ using IntegratorEuler = aligator::dynamics::IntegratorEulerTpl<double>;
 using CostStack = aligator::CostStackTpl<double>;
 using QuadraticStateCost = aligator::QuadraticStateCostTpl<double>;
 using QuadraticControlCost = aligator::QuadraticControlCostTpl<double>;
-using DynamicsFiniteDifference = aligator::autodiff::DynamicsFiniteDifferenceHelper<double>;
 
-VectorXd calcNominalTorque(const pin::Model &model, const VectorXd &q_nom)
+VectorXd calcNominalTorque(const Model &model, const VectorXd &q_nom)
 {
     int nq = model.nq;
     int nv = model.nv;
-    pin::Data data(model);
-    pin::rnea(model, data, q_nom, VectorXd::Zero(nv), VectorXd::Zero(nv));
+    Data data(model);
+    pinocchio::rnea(model, data, q_nom, VectorXd::Zero(nv), VectorXd::Zero(nv));
     return data.tau.tail(nv - 6);
 }
 
-void computeFutureStates(const pin::Model &model,
+void computeFutureStates(const Model &model,
                          const double &vx,
                          const VectorXd &x0,
                          double dt,
                          std::vector<VectorXd> &x_ref)
 {
-    pin::Data data(model);
+    Data data(model);
 
     int nq = model.nq;
     int nv = model.nv;
@@ -56,7 +53,7 @@ void computeFutureStates(const pin::Model &model,
     }
 }
 
-std::shared_ptr<TrajOptProblem> createTrajOptProblem(const CompliantContactFwdDynamics &dynamics,
+std::shared_ptr<TrajOptProblem> createTrajOptProblem(const ContactFwdDynamics &dynamics,
                                                      int nsteps, double timestep,
                                                      const std::vector<VectorXd> &x_ref,
                                                      const std::vector<VectorXd> &u_ref,
@@ -106,8 +103,6 @@ std::shared_ptr<TrajOptProblem> createTrajOptProblem(const CompliantContactFwdDy
     w_u.diagonal().array() = 1e-4;
 
     IntegratorSemiImplEuler discrete_dyn = IntegratorSemiImplEuler(dynamics, timestep);
-    DynamicsFiniteDifference finite_diff_dyn(space, discrete_dyn, 1e-6);
-    // DynamicsFiniteDifference finite_diff_dyn(space, discrete_dyn, timestep);
 
     std::vector<xyz::polymorphic<StageModel>> stage_models;
     for (size_t i = 0; i < nsteps; i++)
@@ -116,7 +111,7 @@ std::shared_ptr<TrajOptProblem> createTrajOptProblem(const CompliantContactFwdDy
         rcost.addCost("state_cost", QuadraticStateCost(space, nu, x_ref[i], w_x));
         rcost.addCost("control_cost", QuadraticControlCost(space, u_ref[i], w_u));
 
-        StageModel sm = StageModel(rcost, finite_diff_dyn);
+        StageModel sm = StageModel(rcost, discrete_dyn);
         stage_models.push_back(std::move(sm));
     }
 
@@ -144,24 +139,19 @@ int main(int argc, char const *argv[])
 {
 
     std::string urdf_filename = "/home/zishang/cpp_workspace/aligator_cimpc/robot/mini_cheetah/urdf/mini_cheetah_ground.urdf";
-    std::string srdf_filename = "/home/zishang/cpp_workspace/aligator_cimpc/robot/mini_cheetah/srdf/mini_cheetah.srdf";
 
-    pin::Model model;
-    pin::GeometryModel geom_model;
-    pin::urdf::buildModel(urdf_filename, model);
-    pin::urdf::buildGeom(model, urdf_filename, pinocchio::COLLISION, geom_model);
-    geom_model.addAllCollisionPairs();
-    pin::srdf::removeCollisionPairs(model, geom_model, srdf_filename);
+    Model model;
+    pinocchio::urdf::buildModel(urdf_filename, model);
     MultibodyPhaseSpace space(model);
-    MatrixXd actuation = MatrixXd::Zero(model.nv, 12);
-    actuation.bottomRows(12).setIdentity();
-    CompliantContactParameter contact_param;
-    CompliantContactFwdDynamics dynamics(space, actuation, geom_model, contact_param);
-
-    int nsteps = 50;
-    double timestep = 0.02;
+    const int nu = model.nv - 6;
     const int nq = model.nq;
     const int nv = model.nv;
+    MatrixXd actuation = MatrixXd::Zero(model.nv, nu);
+    actuation.bottomRows(nu).setIdentity();
+    ContactFwdDynamics dynamics(space, actuation);
+
+    int nsteps = 50;
+    double timestep = 0.01;
 
     /************************initial state**********************/
     VectorXd x0 = VectorXd::Zero(nq + nv);
@@ -190,7 +180,7 @@ int main(int argc, char const *argv[])
     /************************create problem**********************/
     auto problem = createTrajOptProblem(dynamics, nsteps, timestep, x_ref, u_ref, x0);
     double tol = 1e-4;
-    int max_iters = 1000;
+    int max_iters = 100;
     double mu_init = 1e-8;
     aligator::SolverProxDDPTpl<double> solver(tol, mu_init, max_iters, aligator::VerboseLevel::QUIET);
     std::vector<VectorXd> x_guess, u_guess;
@@ -212,7 +202,7 @@ int main(int argc, char const *argv[])
 
     /************************理想迭代**********************/
     std::vector<VectorXd> x_log;
-    for (size_t i = 0; i < 100; i++)
+    for (size_t i = 0; i < 1000; i++)
     {
         // 更新期望状态
         computeFutureStates(model, vx, x0, timestep, x_ref);

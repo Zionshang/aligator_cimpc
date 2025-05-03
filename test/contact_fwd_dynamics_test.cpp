@@ -18,8 +18,8 @@ int main()
     Data data(model);
     int nq = model.nq;
     int nv = model.nv;
-    model.lowerPositionLimit.head<3>().fill(1.);
-    model.upperPositionLimit.head<3>().fill(2.);
+    model.lowerPositionLimit.head<3>().fill(-1.);
+    model.upperPositionLimit.head<3>().fill(-0.5);
 
     MultibodyPhaseSpace space(model);
     int nu = model.nv - 6;

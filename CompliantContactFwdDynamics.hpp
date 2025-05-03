@@ -44,7 +44,7 @@ struct CompliantContactFwdDynamics : ODEAbstract
 
     MultibodyPhaseSpace space_; // 存储着pinocchio模型
     MatrixXd actuation_matrix_;
-    pin::GeometryModel geom_model_;
+    mutable pin::GeometryModel geom_model_;
     CompliantContactParameter contact_param_;
 };
 

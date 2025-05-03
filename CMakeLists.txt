@@ -6,9 +6,9 @@ find_package(pinocchio REQUIRED)
 
 include_directories(include)
 
-add_executable(offline_test offline_test.cpp
-    src/contact_fwd_dynamics.cpp
-    CompliantContactFwdDynamics.cpp)
+add_executable(offline_test test/offline_test.cpp
+    src/contact_force.cpp
+    src/contact_fwd_dynamics.cpp)
 
 target_link_libraries(offline_test aligator::aligator)
 target_link_libraries(offline_test pinocchio::pinocchio)

@@ -12,28 +12,6 @@ ContactFwdDynamics::ContactFwdDynamics(const MultibodyPhaseSpace &space, const M
                         "model nv ({} and {}).",
                         actuation.rows(), nv));
     }
-
-    //////////// 创建 CppAD 的正动力学函数 //////////
-    using CppAD::AD;
-    using ADVectorX = Eigen::VectorX<AD<double>>;
-
-    pinocchio::ModelTpl<AD<double>> ad_model = space_.getModel().cast<AD<double>>();
-    pinocchio::DataTpl<AD<double>> ad_data(ad_model);
-    int nq = ad_model.nq;
-
-    ADVectorX ad_X(nq + nv + nv + nv); // q, v, tau, dq
-    ad_X.setZero();
-    CppAD::Independent(ad_X);
-    ADVectorX ad_Y(nv);
-
-    ADVectorX ad_q_plus = pinocchio::integrate(ad_model, ad_X.head(nq), ad_X.tail(nv));
-    pinocchio::forwardKinematics(ad_model, ad_data, ad_q_plus, ad_X.segment(nq, nv));
-    pinocchio::updateFramePlacements(ad_model, ad_data);
-    aligned_vector<pinocchio::ForceTpl<AD<double>>> ad_f_ext(ad_model.njoints,
-                                                             pinocchio::ForceTpl<AD<double>>::Zero());
-    CalcContactForceContributionAD(ad_model, ad_data, ad_f_ext);
-    ad_Y = pinocchio::aba(ad_model, ad_data, ad_q_plus, ad_X.segment(nq, nv), ad_X.segment(nq + nv, nv), ad_f_ext);
-    ad_fun_.Dependent(ad_X, ad_Y);
 }
 
 void ContactFwdDynamics::forward(const ConstVectorRef &x, const ConstVectorRef &u,
@@ -69,7 +47,7 @@ void ContactFwdDynamics::dForward(const ConstVectorRef &x, const ConstVectorRef 
     Eigen::VectorXd X(nq + nv + nv + nv);
     X << x, d.tau_, Eigen::VectorXd::Zero(nv);
 
-    Eigen::VectorXd da_dx_vec = ad_fun_.Jacobian(X);
+    Eigen::VectorXd da_dx_vec = d.ad_fwd_dynamics_.Jacobian(X);
     Eigen::MatrixXd da_dx = da_dx_vec.reshaped(X.size(), nv).transpose();
     Eigen::MatrixXd da_dq = da_dx.rightCols(nv);
     Eigen::MatrixXd da_dv = da_dx.middleCols(nq, nv);
@@ -94,4 +72,27 @@ ContactFwdDynamicsData::ContactFwdDynamicsData(const ContactFwdDynamics &dynamic
     const Model &model = dynamics.space_.getModel();
     data_ = Data(model);
     Jx_.topRightCorner(model.nv, model.nv).setIdentity();
+
+    //////////// 创建 CppAD 的正动力学函数 //////////
+    using CppAD::AD;
+    using ADVectorX = Eigen::VectorX<AD<double>>;
+
+    pinocchio::ModelTpl<AD<double>> ad_model = model.cast<AD<double>>();
+    pinocchio::DataTpl<AD<double>> ad_data(ad_model);
+    int nq = ad_model.nq;
+    int nv = ad_model.nv;
+
+    ADVectorX ad_X(nq + nv + nv + nv); // q, v, tau, dq
+    ad_X.setZero();
+    CppAD::Independent(ad_X);
+    ADVectorX ad_Y(nv);
+
+    ADVectorX ad_q_plus = pinocchio::integrate(ad_model, ad_X.head(nq), ad_X.tail(nv));
+    pinocchio::forwardKinematics(ad_model, ad_data, ad_q_plus, ad_X.segment(nq, nv));
+    pinocchio::updateFramePlacements(ad_model, ad_data);
+    aligned_vector<pinocchio::ForceTpl<AD<double>>> ad_f_ext(ad_model.njoints,
+                                                             pinocchio::ForceTpl<AD<double>>::Zero());
+    CalcContactForceContributionAD(ad_model, ad_data, ad_f_ext);
+    ad_Y = pinocchio::aba(ad_model, ad_data, ad_q_plus, ad_X.segment(nq, nv), ad_X.segment(nq + nv, nv), ad_f_ext);
+    ad_fwd_dynamics_.Dependent(ad_X, ad_Y);
 }

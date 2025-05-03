@@ -36,7 +36,6 @@ struct ContactFwdDynamics : ODEAbstract
 
     MultibodyPhaseSpace space_; // 存储着pinocchio模型
     MatrixXd actuation_matrix_;
-    mutable CppAD::ADFun<double> ad_fun_;
 };
 
 struct ContactFwdDynamicsData : ContinuousDynamicsData
@@ -46,4 +45,5 @@ struct ContactFwdDynamicsData : ContinuousDynamicsData
     VectorXd tau_;
     Data data_;
     MatrixXd dtau_du_;
+    CppAD::ADFun<double> ad_fwd_dynamics_;
 };
