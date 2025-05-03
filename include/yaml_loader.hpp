@@ -17,8 +17,11 @@ struct YamlLoader
     Eigen::VectorXd w_vel_body_term;
     Eigen::VectorXd w_vel_leg_term;
     Eigen::VectorXd w_u_leg;
+    double w_foot_slip_clearance;
+
     int nsteps;
     double timestep;
+    int max_iter;
 
     YamlLoader(const std::string &filepath)
     {
@@ -35,9 +38,11 @@ struct YamlLoader
             w_vel_body_term = yamlSequenceToEigen(config["w_vel_body_term"]);
             w_vel_leg_term = yamlSequenceToEigen(config["w_vel_leg_term"]);
             w_u_leg = yamlSequenceToEigen(config["w_u_leg"]);
+            w_foot_slip_clearance = config["w_foot_slip_clearance"].as<double>();
 
             nsteps = config["nsteps"].as<int>();
             timestep = config["timestep"].as<double>();
+            max_iter = config["max_iter"].as<int>();
 
             std::cout << "w_pos_body: " << w_pos_body.transpose() << std::endl;
             std::cout << "w_pos_leg: " << w_pos_leg.transpose() << std::endl;
@@ -48,8 +53,11 @@ struct YamlLoader
             std::cout << "w_vel_body_term: " << w_vel_body_term.transpose() << std::endl;
             std::cout << "w_vel_leg_term: " << w_vel_leg_term.transpose() << std::endl;
             std::cout << "w_u_leg: " << w_u_leg.transpose() << std::endl;
+            std::cout << "w_foot_slip_clearance: " << w_foot_slip_clearance << std::endl;
+
             std::cout << "nsteps: " << nsteps << std::endl;
             std::cout << "timestep: " << timestep << std::endl;
+            std::cout << "max_iter: " << max_iter << std::endl;
         }
         catch (const std::exception &e)
         {

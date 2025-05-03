@@ -34,8 +34,8 @@ VectorXd calcNominalTorque(const Model &model, const VectorXd &q_nom)
     int nv = model.nv;
     Data data(model);
     pinocchio::rnea(model, data, q_nom, VectorXd::Zero(nv), VectorXd::Zero(nv));
-    // return data.tau.tail(nv - 6);
-    return VectorXd::Zero(nv - 6);
+    return data.tau.tail(nv - 6);
+    // return VectorXd::Zero(nv - 6);
 }
 
 void computeFutureStates(const Model &model,
@@ -104,7 +104,7 @@ std::shared_ptr<TrajOptProblem> createTrajOptProblem(const ContactFwdDynamics &d
     IntegratorSemiImplEuler discrete_dyn = IntegratorSemiImplEuler(dynamics, timestep);
 
     std::vector<xyz::polymorphic<StageModel>> stage_models;
-    FootSlipClearanceCost fscc(space, nu, 1.0, -30.0);
+    FootSlipClearanceCost fscc(space, nu, yaml_loader.w_foot_slip_clearance, -30.0);
     CostFiniteDifference fscc_fini_diff(fscc, 1e-6);
 
     for (size_t i = 0; i < nsteps; i++)
@@ -202,7 +202,7 @@ int main(int argc, char const *argv[])
 
     x_guess = solver.results_.xs;
     u_guess = solver.results_.us;
-    solver.max_iters = 10;
+    solver.max_iters = yaml_loader.max_iter;
 
     /************************理想迭代**********************/
     std::vector<VectorXd> x_log;
