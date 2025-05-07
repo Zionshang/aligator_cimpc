@@ -16,7 +16,9 @@ target_link_libraries(offline_test aligator::aligator
     yaml-cpp)
 
 
-add_executable(cppad_test test/cppad_test.cpp)
+add_executable(cppad_test
+    test/cppad_test.cpp
+    src/contact_force.cpp)
 target_link_libraries(cppad_test aligator::aligator
     pinocchio::pinocchio)
 
