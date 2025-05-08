@@ -148,30 +148,24 @@ void CalcContactForce(const Model &model, const Data &data,
 template <typename Scalar>
 void CalcContactForceContribution(const pinocchio::ModelTpl<Scalar> &model,
                                   const pinocchio::DataTpl<Scalar> &data,
-                                  aligned_vector<pinocchio::ForceTpl<Scalar>> &f_ext)
+                                  aligned_vector<pinocchio::ForceTpl<Scalar>> &f_ext,
+                                  const ContactParams<Scalar> &contact_params)
 {
 
     const std::vector<int> foot_frame_ids{11, 19, 27, 35};
     const std::vector<int> joint_ids{4, 7, 10, 13};
     const double foot_radius = 0.0175;
 
-    double contact_stiffness = 2000;   // normal force stiffness, in N/m
-    double smoothing_factor = 0.01;    // Amount of smoothing to apply when computing normal forces.
-    double dissipation_velocity = 0.1; // Hunt & Crossley-like model parameter, in m/s.
-
-    double stiction_velocity = 0.5;    // Regularization velocity, in m/s.
-    double friction_coefficient = 1.0; // Coefficient of friction.
-
     using std::abs, std::exp, std::log, std::max, std::pow, std::sqrt;
 
     // Compliant contact parameters
-    const double &k = contact_stiffness;
-    const double &sigma = smoothing_factor;
-    // const double &dissipation_velocity = dissipation_velocity;
+    const double &k = contact_params.contact_stiffness;
+    const double &sigma = contact_params.smoothing_factor;
+    const double &dissipation_velocity = contact_params.dissipation_velocity;
 
     // Friction parameters.
-    const double &vs = stiction_velocity;    // Regularization.
-    const double &mu = friction_coefficient; // Coefficient of friction.
+    const double &vs = contact_params.stiction_velocity;    // Regularization.
+    const double &mu = contact_params.friction_coefficient; // Coefficient of friction.
 
     const double eps = sqrt(std::numeric_limits<double>::epsilon());
     double threshold = -sigma * log(exp(eps / (sigma * k)) - 1.0);
@@ -279,7 +273,8 @@ void CalcContactForceContribution(const pinocchio::ModelTpl<Scalar> &model,
 template <typename Scalar>
 void CalcContactForceContributionAD(const pinocchio::ModelTpl<Scalar> &model,
                                     const pinocchio::DataTpl<Scalar> &data,
-                                    aligned_vector<pinocchio::ForceTpl<Scalar>> &f_ext)
+                                    aligned_vector<pinocchio::ForceTpl<Scalar>> &f_ext,
+                                    const ContactParams<Scalar> &contact_params)
 {
     using CppAD::CondExpGe;
     using CppAD::CondExpGt;
@@ -293,16 +288,11 @@ void CalcContactForceContributionAD(const pinocchio::ModelTpl<Scalar> &model,
     const std::vector<int> joint_ids{4, 7, 10, 13};
     const Scalar foot_radius = Scalar(0.0175);
 
-    Scalar contact_stiffness = Scalar(2000);
-    Scalar smoothing_factor = Scalar(0.01);
-    Scalar dissipation_velocity = Scalar(0.1);
-    Scalar stiction_velocity = Scalar(0.5);
-    Scalar friction_coefficient = Scalar(1.0);
-
-    const Scalar k = contact_stiffness;
-    const Scalar sigma = smoothing_factor;
-    const Scalar vs = stiction_velocity;
-    const Scalar mu = friction_coefficient;
+    const Scalar k = contact_params.contact_stiffness;
+    const Scalar sigma = contact_params.smoothing_factor;
+    const Scalar vs = contact_params.stiction_velocity;
+    const Scalar mu = contact_params.friction_coefficient;
+    const Scalar dissipation_velocity = contact_params.dissipation_velocity;
 
     const Scalar eps = sqrt(std::numeric_limits<double>::epsilon());
     Scalar threshold = -sigma * log(exp(eps / (sigma * k)) - Scalar(1.0));
@@ -390,29 +380,23 @@ template <typename Scalar>
 void CalcContactForceContribution(const pinocchio::ModelTpl<Scalar> &model,
                                   const pinocchio::DataTpl<Scalar> &data,
                                   aligned_vector<pinocchio::ForceTpl<Scalar>> &f_ext,
+                                  const ContactParams<Scalar> &contact_params,
                                   std::vector<Vector3d> &contact_forces)
 {
     const std::vector<int> foot_frame_ids{11, 19, 27, 35};
     const std::vector<int> joint_ids{4, 7, 10, 13};
     const double foot_radius = 0.0175;
 
-    double contact_stiffness = 2000;   // normal force stiffness, in N/m
-    double smoothing_factor = 0.01;    // Amount of smoothing to apply when computing normal forces.
-    double dissipation_velocity = 0.1; // Hunt & Crossley-like model parameter, in m/s.
-
-    double stiction_velocity = 0.5;    // Regularization velocity, in m/s.
-    double friction_coefficient = 1.0; // Coefficient of friction.
-
     using std::abs, std::exp, std::log, std::max, std::pow, std::sqrt;
 
     // Compliant contact parameters
-    const double &k = contact_stiffness;
-    const double &sigma = smoothing_factor;
-    // const double &dissipation_velocity = dissipation_velocity;
+    const double &k = contact_params.contact_stiffness;
+    const double &sigma = contact_params.smoothing_factor;
+    const double &dissipation_velocity = contact_params.dissipation_velocity;
 
     // Friction parameters.
-    const double &vs = stiction_velocity;    // Regularization.
-    const double &mu = friction_coefficient; // Coefficient of friction.
+    const double &vs = contact_params.stiction_velocity;    // Regularization.
+    const double &mu = contact_params.friction_coefficient; // Coefficient of friction.
 
     const double eps = sqrt(std::numeric_limits<double>::epsilon());
     double threshold = -sigma * log(exp(eps / (sigma * k)) - 1.0);
@@ -525,14 +509,18 @@ void CalcContactForceContribution(const pinocchio::ModelTpl<Scalar> &model,
 template void CalcContactForceContribution<double>(
     const pinocchio::ModelTpl<double> &,
     const pinocchio::DataTpl<double> &,
-    aligned_vector<pinocchio::ForceTpl<double>> &);
+    aligned_vector<pinocchio::ForceTpl<double>> &,
+    const ContactParams<double> &);
 
 template void CalcContactForceContributionAD<CppAD::AD<double>>(
     const pinocchio::ModelTpl<CppAD::AD<double>> &,
     const pinocchio::DataTpl<CppAD::AD<double>> &,
-    aligned_vector<pinocchio::ForceTpl<CppAD::AD<double>>> &);
+    aligned_vector<pinocchio::ForceTpl<CppAD::AD<double>>> &,
+    const ContactParams<CppAD::AD<double>> &);
 
-template void CalcContactForceContribution(const pinocchio::ModelTpl<double> &model,
-                                           const pinocchio::DataTpl<double> &data,
-                                           aligned_vector<pinocchio::ForceTpl<double>> &f_ext,
-                                           std::vector<Vector3d> &contact_forces);
+template void CalcContactForceContribution<double>(
+    const pinocchio::ModelTpl<double> &,
+    const pinocchio::DataTpl<double> &,
+    aligned_vector<pinocchio::ForceTpl<double>> &,
+    const ContactParams<double> &,
+    std::vector<Vector3d> &);

@@ -1,8 +1,9 @@
 #include "contact_fwd_dynamics.hpp"
 
-ContactFwdDynamics::ContactFwdDynamics(const MultibodyPhaseSpace &space, const MatrixXd &actuation)
+ContactFwdDynamics::ContactFwdDynamics(const MultibodyPhaseSpace &space, const MatrixXd &actuation,
+                                       ContactParams<double> contact_params)
     : ODEAbstract(space, (int)actuation.cols()),
-      space_(space), actuation_matrix_(actuation)
+      space_(space), actuation_matrix_(actuation), contact_params_(contact_params)
 {
     const int nv = space.getModel().nv;
     if (nv != actuation.rows())
@@ -30,7 +31,7 @@ void ContactFwdDynamics::forward(const ConstVectorRef &x, const ConstVectorRef &
     pinocchio::updateFramePlacements(model, d.data_);
     aligned_vector<pinocchio::Force> f_ext(model.njoints, pinocchio::Force::Zero()); // todo: 删除临时变量
     // CalcContactForceContribution(model, d.data_, f_ext);
-    CalcContactForceContribution(model, d.data_, f_ext, d.contact_forces_);
+    CalcContactForceContribution(model, d.data_, f_ext, contact_params_, d.contact_forces_);
 
     data.xdot_.head(nv) = v;
     data.xdot_.segment(nv, nv) = pinocchio::aba(model, d.data_, q, v, d.tau_, f_ext);
@@ -93,7 +94,8 @@ ContactFwdDynamicsData::ContactFwdDynamicsData(const ContactFwdDynamics &dynamic
     pinocchio::updateFramePlacements(ad_model, ad_data);
     aligned_vector<pinocchio::ForceTpl<AD<double>>> ad_f_ext(ad_model.njoints,
                                                              pinocchio::ForceTpl<AD<double>>::Zero());
-    CalcContactForceContributionAD(ad_model, ad_data, ad_f_ext);
+    ContactParams<CppAD::AD<double>> ad_contact_params(dynamics.contact_params_);
+    CalcContactForceContributionAD(ad_model, ad_data, ad_f_ext, ad_contact_params);
     ad_Y = pinocchio::aba(ad_model, ad_data, ad_q_plus, ad_X.segment(nq, nv), ad_X.segment(nq + nv, nv), ad_f_ext);
     ad_fwd_dynamics_.Dependent(ad_X, ad_Y);
 

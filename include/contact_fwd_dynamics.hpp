@@ -21,7 +21,8 @@ struct CompliantContactFwdData;
 
 struct ContactFwdDynamics : ODEAbstract
 {
-    ContactFwdDynamics(const MultibodyPhaseSpace &space, const MatrixXd &actuation);
+    ContactFwdDynamics(const MultibodyPhaseSpace &space, const MatrixXd &actuation,
+                       ContactParams<double> contact_params);
 
     const MultibodyPhaseSpace &space() const { return space_; }
 
@@ -36,6 +37,7 @@ struct ContactFwdDynamics : ODEAbstract
 
     MultibodyPhaseSpace space_; // 存储着pinocchio模型
     MatrixXd actuation_matrix_;
+    ContactParams<double> contact_params_;
 };
 
 struct ContactFwdDynamicsData : ContinuousDynamicsData

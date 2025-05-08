@@ -7,6 +7,8 @@
 #include <pinocchio/collision/collision.hpp>
 #include <cppad/cppad.hpp>
 
+#include "contact_parameters.hpp"
+
 using pinocchio::Data;
 using pinocchio::Force;
 using pinocchio::GeometryData;
@@ -23,15 +25,18 @@ void CalcContactForce(const Model &model, const Data &data,
 template <typename Scalar>
 void CalcContactForceContribution(const pinocchio::ModelTpl<Scalar> &model,
                                   const pinocchio::DataTpl<Scalar> &data,
-                                  aligned_vector<pinocchio::ForceTpl<Scalar>> &f_ext);
+                                  aligned_vector<pinocchio::ForceTpl<Scalar>> &f_ext,
+                                  const ContactParams<Scalar> &contact_params);
 
 template <typename Scalar>
 void CalcContactForceContributionAD(const pinocchio::ModelTpl<Scalar> &model,
                                     const pinocchio::DataTpl<Scalar> &data,
-                                    aligned_vector<pinocchio::ForceTpl<Scalar>> &f_ext);
+                                    aligned_vector<pinocchio::ForceTpl<Scalar>> &f_ext,
+                                    const ContactParams<Scalar> &contact_params);
 
 template <typename Scalar>
 void CalcContactForceContribution(const pinocchio::ModelTpl<Scalar> &model,
                                   const pinocchio::DataTpl<Scalar> &data,
                                   aligned_vector<pinocchio::ForceTpl<Scalar>> &f_ext,
+                                  const ContactParams<Scalar> &contact_params,
                                   std::vector<Vector3d> &contact_forces);

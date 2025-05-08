@@ -160,7 +160,8 @@ int main(int argc, char const *argv[])
     const int nv = model.nv;
     MatrixXd actuation = MatrixXd::Zero(model.nv, nu);
     actuation.bottomRows(nu).setIdentity();
-    ContactFwdDynamics dynamics(space, actuation);
+    ContactParams<double> contact_params;
+    ContactFwdDynamics dynamics(space, actuation, contact_params);
 
     int nsteps = yaml_loader.nsteps;
     double timestep = yaml_loader.timestep;
