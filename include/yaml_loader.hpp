@@ -23,6 +23,12 @@ struct YamlLoader
     double timestep;
     int max_iter;
 
+    double contact_stiffness;
+    double smoothing_factor;
+    double dissipation_velocity;
+    double stiction_velocity;
+    double friction_coefficient;
+
     YamlLoader(const std::string &filepath)
     {
         try
@@ -44,6 +50,12 @@ struct YamlLoader
             timestep = config["timestep"].as<double>();
             max_iter = config["max_iter"].as<int>();
 
+            contact_stiffness = config["contact_stiffness"].as<double>();
+            smoothing_factor = config["smoothing_factor"].as<double>();
+            dissipation_velocity = config["dissipation_velocity"].as<double>();
+            stiction_velocity = config["stiction_velocity"].as<double>();
+            friction_coefficient = config["friction_coefficient"].as<double>();
+
             std::cout << "w_pos_body: " << w_pos_body.transpose() << std::endl;
             std::cout << "w_pos_leg: " << w_pos_leg.transpose() << std::endl;
             std::cout << "w_vel_body: " << w_vel_body.transpose() << std::endl;
@@ -58,6 +70,12 @@ struct YamlLoader
             std::cout << "nsteps: " << nsteps << std::endl;
             std::cout << "timestep: " << timestep << std::endl;
             std::cout << "max_iter: " << max_iter << std::endl;
+
+            std::cout << "contact_stiffness: " << contact_stiffness << std::endl;
+            std::cout << "smoothing_factor: " << smoothing_factor << std::endl;
+            std::cout << "dissipation_velocity: " << dissipation_velocity << std::endl;
+            std::cout << "stiction_velocity: " << stiction_velocity << std::endl;
+            std::cout << "friction_coefficient: " << friction_coefficient << std::endl;
         }
         catch (const std::exception &e)
         {

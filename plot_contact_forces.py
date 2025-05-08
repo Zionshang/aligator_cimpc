@@ -18,17 +18,41 @@ def plot_leg_forces(csv_file):
     fx_3 = data[:, 9]
     fx_total = fx_0 + fx_1 + fx_2 + fx_3
 
-    # 第一个窗口：Z 方向力
-    plt.figure()
+    # 第一个窗口：Z 方向力（子图形式）
+    plt.figure(figsize=(10, 8))
+    plt.subplot(4, 1, 1)
     plt.plot(fz_0, label="Leg 0 Z-force")
-    plt.plot(fz_1, label="Leg 1 Z-force")
-    plt.plot(fz_2, label="Leg 2 Z-force")
-    plt.plot(fz_3, label="Leg 3 Z-force")
-    plt.title("Z-direction Contact Forces per Leg")
+    plt.title("Leg 0 Z-direction Contact Force")
     plt.xlabel("Time Step")
     plt.ylabel("Z Force (N)")
     plt.legend()
     plt.grid(True)
+
+    plt.subplot(4, 1, 2)
+    plt.plot(fz_1, label="Leg 1 Z-force")
+    plt.title("Leg 1 Z-direction Contact Force")
+    plt.xlabel("Time Step")
+    plt.ylabel("Z Force (N)")
+    plt.legend()
+    plt.grid(True)
+
+    plt.subplot(4, 1, 3)
+    plt.plot(fz_2, label="Leg 2 Z-force")
+    plt.title("Leg 2 Z-direction Contact Force")
+    plt.xlabel("Time Step")
+    plt.ylabel("Z Force (N)")
+    plt.legend()
+    plt.grid(True)
+
+    plt.subplot(4, 1, 4)
+    plt.plot(fz_3, label="Leg 3 Z-force")
+    plt.title("Leg 3 Z-direction Contact Force")
+    plt.xlabel("Time Step")
+    plt.ylabel("Z Force (N)")
+    plt.legend()
+    plt.grid(True)
+
+    plt.tight_layout()
 
     # 第二个窗口：X 方向合力
     plt.figure()
