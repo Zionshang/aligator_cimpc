@@ -221,6 +221,7 @@ int main(int argc, char const *argv[])
 
     /************************理想迭代**********************/
     std::vector<VectorXd> x_log, u_log;
+    std::vector<double> cost_log;
     ContactFwdDynamicsData dyn_data(dynamics); // 用于打印当前地面接触力
     VectorXd contact_forces = VectorXd::Zero(12);
     std::vector<VectorXd> contact_forces_log;
@@ -252,6 +253,7 @@ int main(int argc, char const *argv[])
         u_guess.erase(u_guess.begin());
         u_guess.push_back(u_guess.back());
 
+        // 记录数据
         x_log.push_back(x0);
         u_log.push_back(solver.results_.us[0]);
         dynamics.forward(solver.results_.xs[0], solver.results_.us[0], dyn_data);
@@ -263,10 +265,12 @@ int main(int argc, char const *argv[])
         }
         std::cout << std::endl;
         contact_forces_log.push_back(contact_forces);
+        cost_log.push_back(solver.results_.traj_cost_);
     }
     saveVectorsToCsv("idea_sim_x.csv", x_log);
     saveVectorsToCsv("idea_sim_u.csv", u_log);
     saveVectorsToCsv("idea_sim_contact_forces.csv", contact_forces_log);
+    saveVectorsToCsv("idea_sim_cost.csv", cost_log);
 
     return 0;
 }
