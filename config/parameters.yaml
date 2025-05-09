@@ -17,8 +17,16 @@ nsteps: 25
 timestep: 0.02
 max_iter: 4
 
-contact_stiffness: 2000
-smoothing_factor: 0.01
-dissipation_velocity: 0.1
-stiction_velocity: 0.5
-friction_coefficient: 1.0
+real_contact:
+  contact_stiffness: 2000
+  smoothing_factor: 0.01
+  dissipation_velocity: 0.1
+  stiction_velocity: 0.5
+  friction_coefficient: 1.0
+
+fake_contact:
+  contact_stiffness: 2000
+  smoothing_factor: 0.01
+  dissipation_velocity: 0.1
+  stiction_velocity: 0.5
+  friction_coefficient: 1.0

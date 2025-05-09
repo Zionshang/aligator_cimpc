@@ -160,12 +160,7 @@ int main(int argc, char const *argv[])
     const int nv = model.nv;
     MatrixXd actuation = MatrixXd::Zero(model.nv, nu);
     actuation.bottomRows(nu).setIdentity();
-    ContactParams<double> contact_params;
-    contact_params.contact_stiffness = yaml_loader.contact_stiffness;
-    contact_params.smoothing_factor = yaml_loader.smoothing_factor;
-    contact_params.dissipation_velocity = yaml_loader.dissipation_velocity;
-    contact_params.stiction_velocity = yaml_loader.stiction_velocity;
-    contact_params.friction_coefficient = yaml_loader.friction_coefficient;
+    ContactParams<double> contact_params = yaml_loader.real_contact_params;
     ContactFwdDynamics dynamics(space, actuation, contact_params);
 
     int nsteps = yaml_loader.nsteps;

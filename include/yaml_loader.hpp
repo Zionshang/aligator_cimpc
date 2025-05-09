@@ -5,6 +5,7 @@
 #include <string>
 #include <iostream>
 #include <vector>
+#include "contact_parameters.hpp"
 
 struct YamlLoader
 {
@@ -23,11 +24,8 @@ struct YamlLoader
     double timestep;
     int max_iter;
 
-    double contact_stiffness;
-    double smoothing_factor;
-    double dissipation_velocity;
-    double stiction_velocity;
-    double friction_coefficient;
+    ContactParams<double> real_contact_params;
+    ContactParams<double> fake_contact_params;
 
     YamlLoader(const std::string &filepath)
     {
@@ -50,11 +48,21 @@ struct YamlLoader
             timestep = config["timestep"].as<double>();
             max_iter = config["max_iter"].as<int>();
 
-            contact_stiffness = config["contact_stiffness"].as<double>();
-            smoothing_factor = config["smoothing_factor"].as<double>();
-            dissipation_velocity = config["dissipation_velocity"].as<double>();
-            stiction_velocity = config["stiction_velocity"].as<double>();
-            friction_coefficient = config["friction_coefficient"].as<double>();
+            // 读取 real_contact 二级结构
+            YAML::Node real_contact = config["real_contact"];
+            real_contact_params.contact_stiffness = real_contact["contact_stiffness"].as<double>();
+            real_contact_params.smoothing_factor = real_contact["smoothing_factor"].as<double>();
+            real_contact_params.dissipation_velocity = real_contact["dissipation_velocity"].as<double>();
+            real_contact_params.stiction_velocity = real_contact["stiction_velocity"].as<double>();
+            real_contact_params.friction_coefficient = real_contact["friction_coefficient"].as<double>();
+
+            // 读取 fake_contact 二级结构
+            YAML::Node fake_contact = config["fake_contact"];
+            fake_contact_params.contact_stiffness = fake_contact["contact_stiffness"].as<double>();
+            fake_contact_params.smoothing_factor = fake_contact["smoothing_factor"].as<double>();
+            fake_contact_params.dissipation_velocity = fake_contact["dissipation_velocity"].as<double>();
+            fake_contact_params.stiction_velocity = fake_contact["stiction_velocity"].as<double>();
+            fake_contact_params.friction_coefficient = fake_contact["friction_coefficient"].as<double>();
 
             std::cout << "w_pos_body: " << w_pos_body.transpose() << std::endl;
             std::cout << "w_pos_leg: " << w_pos_leg.transpose() << std::endl;
@@ -71,11 +79,16 @@ struct YamlLoader
             std::cout << "timestep: " << timestep << std::endl;
             std::cout << "max_iter: " << max_iter << std::endl;
 
-            std::cout << "contact_stiffness: " << contact_stiffness << std::endl;
-            std::cout << "smoothing_factor: " << smoothing_factor << std::endl;
-            std::cout << "dissipation_velocity: " << dissipation_velocity << std::endl;
-            std::cout << "stiction_velocity: " << stiction_velocity << std::endl;
-            std::cout << "friction_coefficient: " << friction_coefficient << std::endl;
+            std::cout << "real_contact_params.contact_stiffness: " << real_contact_params.contact_stiffness << std::endl;
+            std::cout << "real_contact_params.smoothing_factor: " << real_contact_params.smoothing_factor << std::endl;
+            std::cout << "real_contact_params.dissipation_velocity: " << real_contact_params.dissipation_velocity << std::endl;
+            std::cout << "real_contact_params.stiction_velocity: " << real_contact_params.stiction_velocity << std::endl;
+            std::cout << "real_contact_params.friction_coefficient: " << real_contact_params.friction_coefficient << std::endl;
+            std::cout << "fake_contact_params.contact_stiffness: " << fake_contact_params.contact_stiffness << std::endl;
+            std::cout << "fake_contact_params.smoothing_factor: " << fake_contact_params.smoothing_factor << std::endl;
+            std::cout << "fake_contact_params.dissipation_velocity: " << fake_contact_params.dissipation_velocity << std::endl;
+            std::cout << "fake_contact_params.stiction_velocity: " << fake_contact_params.stiction_velocity << std::endl;
+            std::cout << "fake_contact_params.friction_coefficient: " << fake_contact_params.friction_coefficient << std::endl;
         }
         catch (const std::exception &e)
         {
