@@ -177,10 +177,11 @@ int main(int argc, char const *argv[])
 
     /************************reference state**********************/
     double vx = 0.5;
+    double dx = 0;
 
     std::vector<VectorXd> x_ref(nsteps, x0);
     // computeFutureStates(model, vx, x0, timestep, x_ref);
-    computeFutureStates(0.5, x0, x_ref);
+    computeFutureStates(dx, x0, x_ref);
     VectorXd u_nom = calcNominalTorque(model, x0.head(nq));
     std::vector<VectorXd> u_ref(nsteps, u_nom);
 
@@ -225,7 +226,7 @@ int main(int argc, char const *argv[])
     {
         // 更新期望状态
         // computeFutureStates(model, vx, x0, timestep, x_ref);
-        computeFutureStates(0.5, x0, x_ref);
+        computeFutureStates(dx, x0, x_ref);
         // std::cout << "x_ref[0] = " << x_ref[0].transpose() << std::endl;
         // std::cout << "x_ref[end] = " << x_ref.back().transpose() << std::endl;
         updateStateReferences(problem, x_ref);
