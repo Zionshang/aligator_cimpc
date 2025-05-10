@@ -32,3 +32,19 @@ add_executable(contact_fwd_dynamics_test
     src/contact_force.cpp)
 target_link_libraries(contact_fwd_dynamics_test aligator::aligator
     pinocchio::pinocchio)
+
+# webots
+set(WEBOTS_HOME "/usr/local/webots")
+add_executable(webots_sim
+    src/main.cpp
+    src/contact_fwd_dynamics.cpp
+    src/contact_force.cpp
+    src/webots_interface.cpp)
+target_link_libraries(contact_fwd_dynamics_test aligator::aligator
+    pinocchio::pinocchio)
+target_link_directories(webots_sim PRIVATE ${WEBOTS_HOME}/lib/controller)
+set(WEBOTSLIBRARIES m ${CMAKE_SHARED_LIBRARY_PREFIX}Controller${CMAKE_SHARED_LIBRARY_SUFFIX} ${CMAKE_SHARED_LIBRARY_PREFIX}CppController${CMAKE_SHARED_LIBRARY_SUFFIX})
+target_include_directories(webots_sim PRIVATE ${WEBOTS_HOME}/include/controller/cpp)
+target_link_libraries(webots_sim aligator::aligator
+    pinocchio::pinocchio
+    ${WEBOTSLIBRARIES})
