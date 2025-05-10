@@ -3,6 +3,7 @@ project(aligator_cimpc VERSION 0.1.0 LANGUAGES C CXX)
 
 find_package(aligator REQUIRED)
 find_package(pinocchio REQUIRED)
+find_package(proxsuite REQUIRED)
 
 include_directories(include)
 
@@ -40,7 +41,8 @@ add_executable(webots_sim
     src/contact_fwd_dynamics.cpp
     src/contact_force.cpp
     src/webots_interface.cpp
-    src/foot_slip_clearance_cost.cpp)
+    src/foot_slip_clearance_cost.cpp
+    src/relaxed_wbc.cpp)
 target_link_libraries(contact_fwd_dynamics_test aligator::aligator
     pinocchio::pinocchio)
 target_link_directories(webots_sim PRIVATE ${WEBOTS_HOME}/lib/controller)
@@ -49,4 +51,6 @@ target_include_directories(webots_sim PRIVATE ${WEBOTS_HOME}/include/controller/
 target_link_libraries(webots_sim aligator::aligator
     pinocchio::pinocchio
     ${WEBOTSLIBRARIES}
-    yaml-cpp)
+    yaml-cpp
+    proxsuite::proxsuite
+)

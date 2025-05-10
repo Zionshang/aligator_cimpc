@@ -10,6 +10,7 @@
 #include <aligator/modelling/dynamics/integrator-euler.hpp>
 #include <aligator/modelling/state-error.hpp>
 #include <proxsuite-nlp/modelling/constraints/box-constraint.hpp>
+#include <aligator/core/stage-data.hpp>
 
 #include <fstream>
 
@@ -20,6 +21,7 @@
 #include "yaml_loader.hpp"
 #include "webots_interface.hpp"
 #include "contact_assessment.hpp"
+#include "relaxed_wbc.hpp"
 
 using aligator::context::TrajOptProblem;
 using StageModel = aligator::StageModelTpl<double>;
@@ -31,6 +33,7 @@ using QuadraticControlCost = aligator::QuadraticControlCostTpl<double>;
 using CostFiniteDifference = aligator::autodiff::CostFiniteDifferenceHelper<double>;
 using ControlErrorResidual = aligator::ControlErrorResidualTpl<double>;
 using BoxConstraint = proxsuite::nlp::BoxConstraintTpl<double>;
+using ExplicitIntegratorData = aligator::dynamics::ExplicitIntegratorDataTpl<double>;
 
 std::string yaml_filename = "/home/zishang/cpp_workspace/aligator_cimpc/config/parameters.yaml";
 YamlLoader yaml_loader(yaml_filename);
@@ -212,6 +215,15 @@ int main(int argc, char const *argv[])
     /************************webots仿真**********************/
     WebotsInterface webots_interface;
     ContactAssessment contact_assessment(dynamics);
+    RelaxedWbcSettings Rwbc_settings;
+    Rwbc_settings.contact_ids = std::vector<pinocchio::FrameIndex>{11, 19, 27, 35};
+    Rwbc_settings.mu = 1;
+    Rwbc_settings.force_size = 3;
+    Rwbc_settings.w_acc = 1;
+    Rwbc_settings.w_force = 100;
+    Rwbc_settings.verbose = false;
+    RelaxedWbc relaxed_wbc(Rwbc_settings, model);
+
     std::vector<VectorXd> x_log, u_log;
     std::vector<double> cost_log;
     VectorXd contact_forces = VectorXd::Zero(12);
@@ -234,10 +246,24 @@ int main(int argc, char const *argv[])
         // 求解
         solver.run(*problem, x_guess, u_guess);
 
+        // 评估接触信息
+        contact_assessment.update(solver.results_.xs[0]);
+
+        // wbc
+        VectorXd q = x0.head(nq);
+        VectorXd v = x0.tail(nv);
+        auto int_data = std::dynamic_pointer_cast<ExplicitIntegratorData>(
+            solver.workspace_.problem_data.stage_data[0]->dynamics_data);
+        VectorXd a = int_data->continuous_data->xdot_;
+        std::vector<bool> contact_state = contact_assessment.contact_state();
+        for (size_t i = 0; i < 4; i++)
+            contact_forces.segment(i * 3, 3) = contact_assessment.contact_forces()[i];
+        relaxed_wbc.solveQP(contact_state, q, v, a, VectorXd::Zero(12), contact_forces);
+
         // 发送力矩
-        webots_interface.sendCmd(solver.results_.us[0]);
+        webots_interface.sendCmd(relaxed_wbc.solved_torque_);
         std::cout << "xs: " << solver.results_.xs[1].transpose() << std::endl;
-        std::cout << "u: " << solver.results_.us[0].transpose() << std::endl;
+        std::cout << "u: " << relaxed_wbc.solved_torque_.transpose() << std::endl;
 
         // 更新warm start
         x_guess = solver.results_.xs;
@@ -248,19 +274,12 @@ int main(int argc, char const *argv[])
         u_guess.erase(u_guess.begin());
         u_guess.push_back(u_guess.back());
 
-        // 评估接触信息
-        contact_assessment.update(solver.results_.xs[0]);
-
         // 记录数据
         x_log.push_back(x0);
         u_log.push_back(solver.results_.us[0]);
         std::cout << "contact forces: ";
         for (size_t i = 0; i < 4; i++)
-        {
-            const auto &force = contact_assessment.contact_forces()[i];
-            std::cout << force.transpose() << "  ";
-            contact_forces.segment(i * 3, 3) = force;
-        }
+            std::cout << contact_assessment.contact_forces()[i].transpose() << "  ";
         std::cout << std::endl;
         contact_forces_log.push_back(contact_forces);
         cost_log.push_back(solver.results_.traj_cost_);
