@@ -97,5 +97,5 @@ cost_csv_1 = "/home/zishang/cpp_workspace/aligator_cimpc/build/idea_sim_cost.csv
 cost_csv_2 = "/home/zishang/cpp_workspace/aligator_cimpc/build/idea_sim_cost_nom.csv"
 
 plot_contact_forces(contact_forces_csv)
-plot_cost(cost_csv_1, cost_csv_2)
+# plot_cost(cost_csv_1, cost_csv_2)
 plt.show()

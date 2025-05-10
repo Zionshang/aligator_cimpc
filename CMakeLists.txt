@@ -39,7 +39,8 @@ add_executable(webots_sim
     src/main.cpp
     src/contact_fwd_dynamics.cpp
     src/contact_force.cpp
-    src/webots_interface.cpp)
+    src/webots_interface.cpp
+    src/foot_slip_clearance_cost.cpp)
 target_link_libraries(contact_fwd_dynamics_test aligator::aligator
     pinocchio::pinocchio)
 target_link_directories(webots_sim PRIVATE ${WEBOTS_HOME}/lib/controller)
@@ -47,4 +48,5 @@ set(WEBOTSLIBRARIES m ${CMAKE_SHARED_LIBRARY_PREFIX}Controller${CMAKE_SHARED_LIB
 target_include_directories(webots_sim PRIVATE ${WEBOTS_HOME}/include/controller/cpp)
 target_link_libraries(webots_sim aligator::aligator
     pinocchio::pinocchio
-    ${WEBOTSLIBRARIES})
+    ${WEBOTSLIBRARIES}
+    yaml-cpp)
