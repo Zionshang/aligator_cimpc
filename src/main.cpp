@@ -22,6 +22,7 @@
 #include "webots_interface.hpp"
 #include "contact_assessment.hpp"
 #include "relaxed_wbc.hpp"
+#include "interpolator.hpp"
 
 using aligator::context::TrajOptProblem;
 using StageModel = aligator::StageModelTpl<double>;
@@ -216,6 +217,7 @@ int main(int argc, char const *argv[])
     WebotsInterface webots_interface;
     ContactAssessment contact_assessment(dynamics);
     RelaxedWbcSettings Rwbc_settings;
+    Interpolator interpolator(model);
     Rwbc_settings.contact_ids = std::vector<pinocchio::FrameIndex>{11, 19, 27, 35};
     Rwbc_settings.mu = 1;
     Rwbc_settings.force_size = 3;
@@ -224,46 +226,72 @@ int main(int argc, char const *argv[])
     Rwbc_settings.verbose = false;
     RelaxedWbc relaxed_wbc(Rwbc_settings, model);
 
+    int mpc_cycle = 10;
+    int itr = 0;
+    const double dt = webots_interface.timestep();
     std::vector<VectorXd> x_log, u_log;
     std::vector<double> cost_log;
     VectorXd contact_forces = VectorXd::Zero(12);
     std::vector<VectorXd> contact_forces_log;
-    std::cout << std::fixed << std::setprecision(2);
+    std::cout << std::fixed << std::setprecision(3);
     dx = 0;
+    VectorXd kp(nu), kd(nu);
+    kp << yaml_loader.kp_leg, yaml_loader.kp_leg, yaml_loader.kp_leg, yaml_loader.kp_leg;
+    kd << yaml_loader.kd_leg, yaml_loader.kd_leg, yaml_loader.kd_leg, yaml_loader.kd_leg;
     while (webots_interface.isRunning())
     {
         // 获取当前状态
         webots_interface.recvState(x0);
-        std::cout << "x0: " << x0.transpose() << std::endl;
+        // std::cout << "x0: " << x0.transpose() << std::endl;
 
         // 更新期望状态
         computeFutureStates(dx, x0, x_ref);
         updateStateReferences(problem, x_ref);
 
-        // 更新当前位置
-        problem->setInitState(x0);
+        if (int(itr % mpc_cycle) == 0)
+        {
+            // 更新当前位置
+            problem->setInitState(x0);
 
-        // 求解
-        solver.run(*problem, x_guess, u_guess);
+            // 求解
+            solver.run(*problem, x_guess, u_guess);
+            itr = 0;
+        }
 
         // 评估接触信息
         contact_assessment.update(solver.results_.xs[0]);
 
-        // wbc
-        VectorXd q = x0.head(nq);
-        VectorXd v = x0.tail(nv);
-        auto int_data = std::dynamic_pointer_cast<ExplicitIntegratorData>(
-            solver.workspace_.problem_data.stage_data[0]->dynamics_data);
-        VectorXd a = int_data->continuous_data->xdot_;
-        std::vector<bool> contact_state = contact_assessment.contact_state();
-        for (size_t i = 0; i < 4; i++)
-            contact_forces.segment(i * 3, 3) = contact_assessment.contact_forces()[i];
-        relaxed_wbc.solveQP(contact_state, q, v, a, VectorXd::Zero(12), contact_forces);
+        // // wbc
+        // VectorXd q = x0.head(nq);
+        // VectorXd v = x0.tail(nv);
+        // auto int_data = std::dynamic_pointer_cast<ExplicitIntegratorData>(
+        //     solver.workspace_.problem_data.stage_data[0]->dynamics_data);
+        // VectorXd a = int_data->continuous_data->xdot_;
+        // std::vector<bool> contact_state = contact_assessment.contact_state();
+        // for (size_t i = 0; i < 4; i++)
+        //     contact_forces.segment(i * 3, 3) = contact_assessment.contact_forces()[i];
+        // relaxed_wbc.solveQP(contact_state, q, v, a, VectorXd::Zero(12), contact_forces);
 
-        // 发送力矩
-        webots_interface.sendCmd(relaxed_wbc.solved_torque_);
-        std::cout << "xs: " << solver.results_.xs[1].transpose() << std::endl;
-        std::cout << "u: " << relaxed_wbc.solved_torque_.transpose() << std::endl;
+        // // 发送力矩
+        // webots_interface.sendCmd(relaxed_wbc.solved_torque_);
+        // std::cout << "xs: " << solver.results_.xs[1].transpose() << std::endl;
+        // std::cout << "u: " << relaxed_wbc.solved_torque_.transpose() << std::endl;
+
+        double delay = itr * dt;
+        std::cout << "delay: " << delay << std::endl;
+        VectorXd x_interp(nq + nv), tau_interp(nu);
+        interpolator.interpolateState(delay, timestep, solver.results_.xs, x_interp);
+        interpolator.interpolateLinear(delay, timestep, solver.results_.us, tau_interp);
+        VectorXd qd = x_interp.segment(6, nu), vd = x_interp.segment(nq + 6, nu);
+        VectorXd q = x0.segment(6, nu), v = x0.segment(nq + 6, nu);
+        VectorXd tau = tau_interp + kp.cwiseProduct(qd - q) + kd.cwiseProduct(vd - v);
+        std::cout << "qd: " << qd.transpose() << std::endl;
+        std::cout << "q: " << q.transpose() << std::endl;
+        std::cout << "vd: " << vd.transpose() << std::endl;
+        std::cout << "v: " << v.transpose() << std::endl;
+        std::cout << "tau_interp: " << tau_interp.transpose() << std::endl;
+        std::cout << "tau: " << tau.transpose() << std::endl;
+        webots_interface.sendCmd(tau);
 
         // 更新warm start
         x_guess = solver.results_.xs;
@@ -273,6 +301,8 @@ int main(int argc, char const *argv[])
         x_guess.push_back(x_guess.back());
         u_guess.erase(u_guess.begin());
         u_guess.push_back(u_guess.back());
+
+        itr++;
 
         // 记录数据
         x_log.push_back(x0);

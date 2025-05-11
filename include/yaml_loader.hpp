@@ -20,6 +20,9 @@ struct YamlLoader
     Eigen::VectorXd w_u_leg;
     double w_foot_slip_clearance;
 
+    Eigen::VectorXd kp_leg;
+    Eigen::VectorXd kd_leg;
+
     int nsteps;
     double timestep;
     int max_iter;
@@ -44,6 +47,9 @@ struct YamlLoader
             w_u_leg = yamlSequenceToEigen(config["w_u_leg"]);
             w_foot_slip_clearance = config["w_foot_slip_clearance"].as<double>();
 
+            kp_leg = yamlSequenceToEigen(config["kp_leg"]);
+            kd_leg = yamlSequenceToEigen(config["kd_leg"]);
+            
             nsteps = config["nsteps"].as<int>();
             timestep = config["timestep"].as<double>();
             max_iter = config["max_iter"].as<int>();

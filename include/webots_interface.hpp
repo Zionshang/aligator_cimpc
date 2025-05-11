@@ -19,6 +19,7 @@ public:
     bool isRunning();
     double current_time() { return current_time_; }
     void resetSim() { supervisor_->simulationReset(); }
+    double timestep() { return double(time_step_) / 1000; }
 
 private:
     void initRecv();
