@@ -24,6 +24,9 @@
 #include "relaxed_wbc.hpp"
 #include "interpolator.hpp"
 
+// #define PD
+#define WBC
+
 using aligator::context::TrajOptProblem;
 using StageModel = aligator::StageModelTpl<double>;
 using IntegratorSemiImplEuler = aligator::dynamics::IntegratorSemiImplEulerTpl<double>;
@@ -153,6 +156,18 @@ void updateStateReferences(std::shared_ptr<TrajOptProblem> problem,
     qsc->setTarget(x_ref.back());
 }
 
+std::vector<VectorXd> getAccelerationResult(const aligator::SolverProxDDPTpl<double> &solver, int nv)
+{
+    std::vector<VectorXd> a;
+    for (size_t i = 0; i < solver.workspace_.problem_data.stage_data.size(); i++)
+    {
+        auto int_data = std::dynamic_pointer_cast<ExplicitIntegratorData>(
+            solver.workspace_.problem_data.stage_data[i]->dynamics_data);
+        a.push_back(int_data->continuous_data->xdot_.tail(nv));
+    }
+    return a;
+}
+
 int main(int argc, char const *argv[])
 {
 
@@ -221,8 +236,8 @@ int main(int argc, char const *argv[])
     Rwbc_settings.contact_ids = std::vector<pinocchio::FrameIndex>{11, 19, 27, 35};
     Rwbc_settings.mu = 1;
     Rwbc_settings.force_size = 3;
-    Rwbc_settings.w_acc = 1;
-    Rwbc_settings.w_force = 100;
+    Rwbc_settings.w_acc = 100;
+    Rwbc_settings.w_force = 1;
     Rwbc_settings.verbose = false;
     RelaxedWbc relaxed_wbc(Rwbc_settings, model);
 
@@ -234,7 +249,7 @@ int main(int argc, char const *argv[])
     VectorXd contact_forces = VectorXd::Zero(12);
     std::vector<VectorXd> contact_forces_log;
     std::cout << std::fixed << std::setprecision(3);
-    dx = 0;
+    dx = 0.0;
     VectorXd kp(nu), kd(nu);
     kp << yaml_loader.kp_leg, yaml_loader.kp_leg, yaml_loader.kp_leg, yaml_loader.kp_leg;
     kd << yaml_loader.kd_leg, yaml_loader.kd_leg, yaml_loader.kd_leg, yaml_loader.kd_leg;
@@ -258,32 +273,54 @@ int main(int argc, char const *argv[])
             itr = 0;
         }
 
+#ifdef WBC
+        // 插值
+        double delay = itr * dt;
+        VectorXd x_interp(nq + nv), a_interp(nv);
+        std::vector<VectorXd> a_result = getAccelerationResult(solver, nv);
+        interpolator.interpolateState(delay, timestep, solver.results_.xs, x_interp);
+        interpolator.interpolateLinear(delay, timestep, a_result, a_interp);
+
         // 评估接触信息
-        contact_assessment.update(solver.results_.xs[0]);
+        contact_assessment.update(x_interp);
 
-        // // wbc
-        // VectorXd q = x0.head(nq);
-        // VectorXd v = x0.tail(nv);
-        // auto int_data = std::dynamic_pointer_cast<ExplicitIntegratorData>(
-        //     solver.workspace_.problem_data.stage_data[0]->dynamics_data);
-        // VectorXd a = int_data->continuous_data->xdot_;
-        // std::vector<bool> contact_state = contact_assessment.contact_state();
-        // for (size_t i = 0; i < 4; i++)
-        //     contact_forces.segment(i * 3, 3) = contact_assessment.contact_forces()[i];
-        // relaxed_wbc.solveQP(contact_state, q, v, a, VectorXd::Zero(12), contact_forces);
+        // wbc
+        VectorXd q = x0.head(nq), v = x0.tail(nv);
+        std::vector<bool> contact_state = contact_assessment.contact_state();
+        for (size_t i = 0; i < 4; i++)
+            contact_forces.segment(i * 3, 3) = contact_assessment.contact_forces()[i];
 
-        // // 发送力矩
-        // webots_interface.sendCmd(relaxed_wbc.solved_torque_);
-        // std::cout << "xs: " << solver.results_.xs[1].transpose() << std::endl;
-        // std::cout << "u: " << relaxed_wbc.solved_torque_.transpose() << std::endl;
+        std::cout << "contact state: ";
+        for (size_t i = 0; i < 4; i++)
+            std::cout << contact_assessment.contact_state()[i] << "  ";
+        std::cout << std::endl;
 
+        relaxed_wbc.solveQP(contact_state, q, v, a_interp, VectorXd::Zero(12), contact_forces);
+
+        std::cout << "contact forces: " << contact_forces.transpose() << std::endl;
+        std::cout << "solved_forces_: " << relaxed_wbc.solved_forces_.transpose() << std::endl;
+        std::cout << "a_interp: " << a_interp.tail(nu).transpose() << std::endl;
+        std::cout << "solved_acc_: " << relaxed_wbc.solved_acc_.tail(nu).transpose() << std::endl;
+        std::cout << "solved_torque_: " << relaxed_wbc.solved_torque_.transpose() << std::endl;
+
+        // 发送力矩
+        webots_interface.sendCmd(relaxed_wbc.solved_torque_);
+#endif
+
+#ifdef PD
         double delay = itr * dt;
         std::cout << "delay: " << delay << std::endl;
         VectorXd x_interp(nq + nv), tau_interp(nu);
-        interpolator.interpolateState(delay, timestep, solver.results_.xs, x_interp);
+        std::vector<VectorXd> x_s(solver.results_.xs.end() - nsteps, solver.results_.xs.end());
+        interpolator.interpolateState(delay, timestep, x_s, x_interp);
+        // interpolator.interpolateLinear(delay, timestep, solver.results_.xs, x_interp);
         interpolator.interpolateLinear(delay, timestep, solver.results_.us, tau_interp);
-        VectorXd qd = x_interp.segment(6, nu), vd = x_interp.segment(nq + 6, nu);
-        VectorXd q = x0.segment(6, nu), v = x0.segment(nq + 6, nu);
+
+        // 评估接触信息
+        contact_assessment.update(x_interp);
+
+        VectorXd qd = x_interp.segment(7, nu), vd = x_interp.segment(nq + 6, nu);
+        VectorXd q = x0.segment(7, nu), v = x0.segment(nq + 6, nu);
         VectorXd tau = tau_interp + kp.cwiseProduct(qd - q) + kd.cwiseProduct(vd - v);
         std::cout << "qd: " << qd.transpose() << std::endl;
         std::cout << "q: " << q.transpose() << std::endl;
@@ -292,6 +329,7 @@ int main(int argc, char const *argv[])
         std::cout << "tau_interp: " << tau_interp.transpose() << std::endl;
         std::cout << "tau: " << tau.transpose() << std::endl;
         webots_interface.sendCmd(tau);
+#endif
 
         // 更新warm start
         x_guess = solver.results_.xs;
@@ -305,14 +343,18 @@ int main(int argc, char const *argv[])
         itr++;
 
         // 记录数据
-        x_log.push_back(x0);
-        u_log.push_back(solver.results_.us[0]);
-        std::cout << "contact forces: ";
-        for (size_t i = 0; i < 4; i++)
-            std::cout << contact_assessment.contact_forces()[i].transpose() << "  ";
-        std::cout << std::endl;
-        contact_forces_log.push_back(contact_forces);
-        cost_log.push_back(solver.results_.traj_cost_);
+        // x_log.push_back(x0);
+        // u_log.push_back(solver.results_.us[0]);
+        // std::cout << "contact forces: ";
+        // for (size_t i = 0; i < 4; i++)
+        //     std::cout << contact_assessment.contact_forces()[i].transpose() << "  ";
+        // std::cout << std::endl;
+        // std::cout << "contact state: ";
+        // for (size_t i = 0; i < 4; i++)
+        //     std::cout << contact_assessment.contact_state()[i] << "  ";
+        // std::cout << std::endl;
+        // contact_forces_log.push_back(contact_forces);
+        // cost_log.push_back(solver.results_.traj_cost_);
     }
     // saveVectorsToCsv("idea_sim_x.csv", x_log);
     // saveVectorsToCsv("idea_sim_u.csv", u_log);

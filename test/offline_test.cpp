@@ -222,6 +222,7 @@ int main(int argc, char const *argv[])
     VectorXd contact_forces = VectorXd::Zero(12);
     std::vector<VectorXd> contact_forces_log;
     std::cout << std::fixed << std::setprecision(2);
+    dx = 0.5;
     for (size_t i = 0; i < 200; i++)
     {
         // 更新期望状态

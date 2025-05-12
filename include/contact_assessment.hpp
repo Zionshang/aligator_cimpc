@@ -17,7 +17,7 @@ public:
         dynamics_.forward(x, VectorXd::Zero(dynamics_.space().getModel().nv), dyn_data_);
         for (size_t i = 0; i < dyn_data_.contact_forces_.size(); i++)
         {
-            if (dyn_data_.contact_forces_[i].norm() > 0.1)
+            if (dyn_data_.contact_forces_[i].norm() > 0.5)
                 contact_state_[i] = 1;
             else
                 contact_state_[i] = 0;
