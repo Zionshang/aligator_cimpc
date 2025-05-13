@@ -13,8 +13,8 @@ w_u_leg: [2e-4, 2e-4, 2e-4]
 
 w_foot_slip_clearance: 0.3
 
-kp_leg: [10, 10, 10]
-kd_leg: [1, 1, 1]
+kp_leg: [50, 50, 50]
+kd_leg: [2, 2, 2]
 
 nsteps: 25
 timestep: 0.02
