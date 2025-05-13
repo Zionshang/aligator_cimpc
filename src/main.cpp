@@ -48,8 +48,8 @@ VectorXd calcNominalTorque(const Model &model, const VectorXd &q_nom)
     int nv = model.nv;
     Data data(model);
     pinocchio::rnea(model, data, q_nom, VectorXd::Zero(nv), VectorXd::Zero(nv));
-    return data.tau.tail(nv - 6);
-    // return VectorXd::Zero(nv - 6);
+    // return data.tau.tail(nv - 6);
+    return VectorXd::Zero(nv - 6);
 }
 
 void computeFutureStates(const Model &model,
@@ -171,7 +171,7 @@ std::vector<VectorXd> getAccelerationResult(const aligator::SolverProxDDPTpl<dou
 int main(int argc, char const *argv[])
 {
 
-    std::string urdf_filename = "/home/zishang/cpp_workspace/aligator_cimpc/robot/galileo_v1d6_description/urdf/galileo_v1d6.urdf";
+    std::string urdf_filename = "/home/zishang/cpp_workspace/aligator_cimpc/robot/mini_cheetah/urdf/mini_cheetah_ground_mesh.urdf";
 
     Model model;
     pinocchio::urdf::buildModel(urdf_filename, model);
@@ -189,12 +189,12 @@ int main(int argc, char const *argv[])
 
     /************************initial state**********************/
     VectorXd x0 = VectorXd::Zero(nq + nv);
-    x0.head(nq) << 0.0, 0.0, 0.4,
+    x0.head(nq) << 0.0, 0.0, 0.29,
         0.0, 0.0, 0.0, 1.0,
-        0.0, 0.72, -1.44,
-        0.0, 0.72, -1.44,
-        0.0, 0.72, -1.44,
-        0.0, 0.72, -1.44;
+        0.0, -0.8, 1.6,
+        0.0, -0.8, 1.6,
+        0.0, -0.8, 1.6,
+        0.0, -0.8, 1.6;
 
     /************************reference state**********************/
     double vx = 0;
@@ -211,7 +211,7 @@ int main(int argc, char const *argv[])
     double tol = 1e-4;
     int max_iters = 100;
     double mu_init = 1e-8;
-    aligator::SolverProxDDPTpl<double> solver(tol, mu_init, max_iters, aligator::VerboseLevel::QUIET);
+    aligator::SolverProxDDPTpl<double> solver(tol, mu_init, max_iters, aligator::VerboseLevel::VERBOSE);
     std::vector<VectorXd> x_guess, u_guess;
     x_guess.assign(nsteps + 1, x0);
     u_guess.assign(nsteps, u_nom);

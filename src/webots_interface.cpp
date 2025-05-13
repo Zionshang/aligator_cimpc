@@ -11,10 +11,10 @@ WebotsInterface::WebotsInterface()
     joint_sensor_.assign(num_joints_, nullptr);
 
     last_q_.resize(joint_sensor_name_.size());
-    last_q_ << 0, 0.72, -1.44,
-        0, 0.72, -1.44,
-        0, 0.72, -1.44,
-        0, 0.72, -1.44;
+    last_q_ << 0.0, -0.8, 1.6,
+        0.0, -0.8, 1.6,
+        0.0, -0.8, 1.6,
+        0.0, -0.8, 1.6;
 
     initRecv();
     initSend();
