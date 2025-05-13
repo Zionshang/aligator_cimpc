@@ -24,8 +24,8 @@
 #include "relaxed_wbc.hpp"
 #include "interpolator.hpp"
 
-// #define PD
-#define WBC
+#define PD
+// #define WBC
 
 using aligator::context::TrajOptProblem;
 using StageModel = aligator::StageModelTpl<double>;
@@ -315,7 +315,13 @@ int main(int argc, char const *argv[])
         interpolator.interpolateState(delay, timestep, x_s, x_interp);
         // interpolator.interpolateLinear(delay, timestep, solver.results_.xs, x_interp);
         interpolator.interpolateLinear(delay, timestep, solver.results_.us, tau_interp);
-
+        // Print out solver.results_.xs vector
+        std::cout << "\n=== solver.results_.xs contents ===\n";
+        for (size_t i = 0; i < solver.results_.xs.size(); ++i)
+        {
+            std::cout << "xs[" << i << "]: " << solver.results_.xs[i].head(nq).transpose().format(Eigen::IOFormat(3, 0, ", ", ", ", "", "", "[", "]")) << std::endl;
+        }
+        std::cout << "=== End of xs vector ===\n\n";
         // 评估接触信息
         contact_assessment.update(x_interp);
 
