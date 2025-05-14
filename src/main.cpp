@@ -133,8 +133,8 @@ std::shared_ptr<TrajOptProblem> createTrajOptProblem(const ContactFwdDynamics &d
     for (size_t i = 0; i < nsteps; i++)
     {
         auto rcost = CostStack(space, nu);
-        rcost.addCost("state_cost", QuadraticStateCost(space, nu, x_ref[i], w_x));
-        rcost.addCost("control_cost", QuadraticControlCost(space, u_ref[i], w_u));
+        rcost.addCost("state_cost", QuadraticStateCost(space, nu, x_ref[i], w_x * timestep));
+        rcost.addCost("control_cost", QuadraticControlCost(space, u_ref[i], w_u * timestep));
         rcost.addCost("foot_slip_clearance_cost", fscc_fini_diff);
 
         StageModel sm = StageModel(rcost, discrete_dyn);
@@ -256,7 +256,7 @@ int main(int argc, char const *argv[])
     VectorXd contact_forces = VectorXd::Zero(12);
     std::vector<VectorXd> contact_forces_log;
     std::cout << std::fixed << std::setprecision(3);
-    dx = 0.5;
+    dx = 0;
     VectorXd kp(nu), kd(nu);
     kp << yaml_loader.kp_leg, yaml_loader.kp_leg, yaml_loader.kp_leg, yaml_loader.kp_leg;
     kd << yaml_loader.kd_leg, yaml_loader.kd_leg, yaml_loader.kd_leg, yaml_loader.kd_leg;
@@ -325,17 +325,17 @@ int main(int argc, char const *argv[])
         double delay = itr * dt;
         std::cout << "delay: " << delay << std::endl;
         VectorXd x_interp(nq + nv), tau_interp(nu);
-        std::vector<VectorXd> x_s(solver.results_.xs.end() - nsteps, solver.results_.xs.end());
-        interpolator.interpolateState(delay, timestep, x_s, x_interp);
-        // interpolator.interpolateLinear(delay, timestep, solver.results_.xs, x_interp);
+        // std::vector<VectorXd> x_s(solver.results_.xs.end() - nsteps, solver.results_.xs.end());
+        // interpolator.interpolateState(delay, timestep, x_s, x_interp);
+        interpolator.interpolateState(delay, timestep, solver.results_.xs, x_interp);
         interpolator.interpolateLinear(delay, timestep, solver.results_.us, tau_interp);
         // Print out solver.results_.xs vector
-        // std::cout << "\n=== solver.results_.xs contents ===\n";
-        // for (size_t i = 0; i < solver.results_.xs.size(); ++i)
-        // {
-        //     std::cout << "xs[" << i << "]: " << solver.results_.xs[i].head(nq).transpose().format(Eigen::IOFormat(3, 0, ", ", ", ", "", "", "[", "]")) << std::endl;
-        // }
-        // std::cout << "=== End of xs vector ===\n\n";
+        std::cout << "\n=== solver.results_.xs contents ===\n";
+        for (size_t i = 0; i < solver.results_.xs.size(); ++i)
+        {
+            std::cout << "xs[" << i << "]: " << solver.results_.xs[i].head(nq).transpose().format(Eigen::IOFormat(3, 0, ", ", ", ", "", "", "[", "]")) << std::endl;
+        }
+        std::cout << "=== End of xs vector ===\n\n";
         // 评估接触信息
         contact_assessment.update(x_interp);
 
