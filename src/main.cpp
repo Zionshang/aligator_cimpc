@@ -335,7 +335,13 @@ int main(int argc, char const *argv[])
         {
             std::cout << "xs[" << i << "]: " << solver.results_.xs[i].head(nq).transpose().format(Eigen::IOFormat(3, 0, ", ", ", ", "", "", "[", "]")) << std::endl;
         }
-        std::cout << "=== End of xs vector ===\n\n";
+        std::cout << "=== End of xs vector ===\n";
+        std::cout << "=== solver.results_.us contents ===\n";
+        for (size_t i = 0; i < solver.results_.us.size(); ++i)
+        {
+            std::cout << "us[" << i << "]: " << solver.results_.us[i].transpose().format(Eigen::IOFormat(3, 0, ", ", ", ", "", "", "[", "]")) << std::endl;
+        }
+        std::cout << "=== End of us vector ===\n";
         // 评估接触信息
         contact_assessment.update(x_interp);
 
