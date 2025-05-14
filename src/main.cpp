@@ -3,14 +3,16 @@
 
 #include <aligator/modelling/costs/sum-of-costs.hpp>
 #include <aligator/modelling/costs/quad-state-cost.hpp>
-#include <aligator/modelling/dynamics/integrator-semi-euler.hpp>
 #include <aligator/solvers/proxddp/solver-proxddp.hpp>
 #include <aligator/modelling/autodiff/finite-difference.hpp>
 #include <aligator/modelling/autodiff/cost-finite-difference.hpp>
-#include <aligator/modelling/dynamics/integrator-euler.hpp>
 #include <aligator/modelling/state-error.hpp>
 #include <proxsuite-nlp/modelling/constraints/box-constraint.hpp>
 #include <aligator/core/stage-data.hpp>
+#include <aligator/modelling/dynamics/integrator-semi-euler.hpp>
+#include <aligator/modelling/dynamics/integrator-euler.hpp>
+#include <aligator/modelling/dynamics/integrator-midpoint.hpp>
+#include <aligator/modelling/dynamics/integrator-rk2.hpp>
 
 #include <fstream>
 
@@ -29,8 +31,6 @@
 
 using aligator::context::TrajOptProblem;
 using StageModel = aligator::StageModelTpl<double>;
-using IntegratorSemiImplEuler = aligator::dynamics::IntegratorSemiImplEulerTpl<double>;
-using IntegratorEuler = aligator::dynamics::IntegratorEulerTpl<double>;
 using CostStack = aligator::CostStackTpl<double>;
 using QuadraticStateCost = aligator::QuadraticStateCostTpl<double>;
 using QuadraticControlCost = aligator::QuadraticControlCostTpl<double>;
@@ -38,6 +38,10 @@ using CostFiniteDifference = aligator::autodiff::CostFiniteDifferenceHelper<doub
 using ControlErrorResidual = aligator::ControlErrorResidualTpl<double>;
 using BoxConstraint = proxsuite::nlp::BoxConstraintTpl<double>;
 using ExplicitIntegratorData = aligator::dynamics::ExplicitIntegratorDataTpl<double>;
+using IntegratorSemiImplEuler = aligator::dynamics::IntegratorSemiImplEulerTpl<double>;
+using IntegratorEuler = aligator::dynamics::IntegratorEulerTpl<double>;
+using IntegratorMidpoint = aligator::dynamics::IntegratorMidpointTpl<double>;
+using IntegratorRK2 = aligator::dynamics::IntegratorRK2Tpl<double>;
 
 std::string yaml_filename = "/home/zishang/cpp_workspace/aligator_cimpc/config/parameters.yaml";
 YamlLoader yaml_loader(yaml_filename);
@@ -115,7 +119,10 @@ std::shared_ptr<TrajOptProblem> createTrajOptProblem(const ContactFwdDynamics &d
     w_u_diag << yaml_loader.w_u_leg, yaml_loader.w_u_leg, yaml_loader.w_u_leg, yaml_loader.w_u_leg;
     MatrixXd w_u = w_u_diag.asDiagonal();
 
-    IntegratorSemiImplEuler discrete_dyn = IntegratorSemiImplEuler(dynamics, timestep);
+    // IntegratorSemiImplEuler discrete_dyn = IntegratorSemiImplEuler(dynamics, timestep);
+    // IntegratorEuler discrete_dyn = IntegratorEuler(dynamics, timestep);
+    IntegratorMidpoint discrete_dyn = IntegratorMidpoint(dynamics, timestep);
+    // IntegratorRK2 discrete_dyn = IntegratorRK2(dynamics, timestep);
 
     std::vector<xyz::polymorphic<StageModel>> stage_models;
     FootSlipClearanceCost fscc(space, nu, yaml_loader.w_foot_slip_clearance, -30.0);
@@ -249,7 +256,7 @@ int main(int argc, char const *argv[])
     VectorXd contact_forces = VectorXd::Zero(12);
     std::vector<VectorXd> contact_forces_log;
     std::cout << std::fixed << std::setprecision(3);
-    dx = 0.0;
+    dx = 0.5;
     VectorXd kp(nu), kd(nu);
     kp << yaml_loader.kp_leg, yaml_loader.kp_leg, yaml_loader.kp_leg, yaml_loader.kp_leg;
     kd << yaml_loader.kd_leg, yaml_loader.kd_leg, yaml_loader.kd_leg, yaml_loader.kd_leg;
@@ -265,11 +272,18 @@ int main(int argc, char const *argv[])
 
         if (int(itr % mpc_cycle) == 0)
         {
+            auto start_time = std::chrono::high_resolution_clock::now();
+
             // 更新当前位置
             problem->setInitState(x0);
 
             // 求解
             solver.run(*problem, x_guess, u_guess);
+
+            auto end_time = std::chrono::high_resolution_clock::now();
+            std::chrono::duration<double, std::milli> solve_time = end_time - start_time;
+            std::cout << "MPC solve time: " << solve_time.count() << " ms" << std::endl;
+
             itr = 0;
         }
 
@@ -316,12 +330,12 @@ int main(int argc, char const *argv[])
         // interpolator.interpolateLinear(delay, timestep, solver.results_.xs, x_interp);
         interpolator.interpolateLinear(delay, timestep, solver.results_.us, tau_interp);
         // Print out solver.results_.xs vector
-        std::cout << "\n=== solver.results_.xs contents ===\n";
-        for (size_t i = 0; i < solver.results_.xs.size(); ++i)
-        {
-            std::cout << "xs[" << i << "]: " << solver.results_.xs[i].head(nq).transpose().format(Eigen::IOFormat(3, 0, ", ", ", ", "", "", "[", "]")) << std::endl;
-        }
-        std::cout << "=== End of xs vector ===\n\n";
+        // std::cout << "\n=== solver.results_.xs contents ===\n";
+        // for (size_t i = 0; i < solver.results_.xs.size(); ++i)
+        // {
+        //     std::cout << "xs[" << i << "]: " << solver.results_.xs[i].head(nq).transpose().format(Eigen::IOFormat(3, 0, ", ", ", ", "", "", "[", "]")) << std::endl;
+        // }
+        // std::cout << "=== End of xs vector ===\n\n";
         // 评估接触信息
         contact_assessment.update(x_interp);
 

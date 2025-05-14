@@ -16,9 +16,9 @@ w_foot_slip_clearance: 0
 kp_leg: [50, 50, 50]
 kd_leg: [2, 2, 2]
 
-nsteps: 20
-timestep: 0.05
-max_iter: 4
+nsteps: 25
+timestep: 0.025
+max_iter: 2
 
 real_contact:
   contact_stiffness: 2000

@@ -107,6 +107,7 @@ std::shared_ptr<TrajOptProblem> createTrajOptProblem(const ContactFwdDynamics &d
     MatrixXd w_u = w_u_diag.asDiagonal();
 
     IntegratorSemiImplEuler discrete_dyn = IntegratorSemiImplEuler(dynamics, timestep);
+    // IntegratorEuler discrete_dyn = IntegratorEuler(dynamics, timestep);
 
     std::vector<xyz::polymorphic<StageModel>> stage_models;
     FootSlipClearanceCost fscc(space, nu, yaml_loader.w_foot_slip_clearance, -30.0);
