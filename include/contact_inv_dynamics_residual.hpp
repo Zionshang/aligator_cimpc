@@ -23,7 +23,7 @@ struct ContactInvDynamicsResidual : StageFunction
     void computeJacobians(const ConstVectorRef &x, const ConstVectorRef &u,
                           StageFunctionData &data) const;
 
-    shared_ptr<StageFunctionData> createData() const;
+    std::shared_ptr<StageFunctionData> createData() const;
 
     pinocchio::Model model_; // 存储着pinocchio模型
     MatrixXd actuation_matrix_;
@@ -32,11 +32,11 @@ struct ContactInvDynamicsResidual : StageFunction
 
 struct ContactInvDynamicsResidualData : StageFunctionData
 {
-    ContactInvDynamicsResidualData(const GravityCompensationResidualTpl &resdl);
+    ContactInvDynamicsResidualData(const ContactInvDynamicsResidual &resdl);
 
     VectorXd tau_;
     pinocchio::Data data_;
-    MatrixXd dtau_du_;
+    MatrixXd dtau_dtaua_; // 广义力矩对驱动力矩的偏导
     CppAD::ADFun<double> ad_inv_dynamics_;
     std::vector<Vector3d> contact_forces_; // 仅仅用于记录数据便于debug
 };
