@@ -13,11 +13,11 @@ w_u_leg: [0.01, 0.01, 0.01]
 
 w_foot_slip_clearance: 0
 
-kp_leg: [50, 50, 50]
+kp_leg: [100, 100, 100]
 kd_leg: [2, 2, 2]
 
-nsteps: 20
-timestep: 0.05
+nsteps: 25
+timestep: 0.02
 max_iter: 2
 
 real_contact:
