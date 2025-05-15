@@ -63,3 +63,12 @@ add_executable(contact_inv_dynamics_test
     src/contact_force.cpp)
 target_link_libraries(contact_inv_dynamics_test aligator::aligator
     pinocchio::pinocchio)
+
+add_executable(offline_inv_dyn_test test/offline_inv_dyn_test.cpp
+    src/contact_force.cpp
+    src/contact_inv_dynamics_residual.cpp
+    src/foot_slip_clearance_cost.cpp)
+
+target_link_libraries(offline_inv_dyn_test aligator::aligator
+    pinocchio::pinocchio
+    yaml-cpp)
