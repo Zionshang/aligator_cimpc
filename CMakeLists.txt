@@ -7,16 +7,6 @@ find_package(proxsuite REQUIRED)
 
 include_directories(include)
 
-add_executable(offline_test test/offline_test.cpp
-    src/contact_force.cpp
-    src/contact_fwd_dynamics.cpp
-    src/foot_slip_clearance_cost.cpp)
-
-target_link_libraries(offline_test aligator::aligator
-    pinocchio::pinocchio
-    yaml-cpp)
-
-
 add_executable(cppad_test
     test/cppad_test.cpp
     src/contact_force.cpp)
@@ -70,5 +60,14 @@ add_executable(offline_inv_dyn_test test/offline_inv_dyn_test.cpp
     src/foot_slip_clearance_cost.cpp)
 
 target_link_libraries(offline_inv_dyn_test aligator::aligator
+    pinocchio::pinocchio
+    yaml-cpp)
+
+add_executable(offline_fwd_dyn_test test/offline_fwd_dyn_test.cpp
+    src/contact_force.cpp
+    src/contact_fwd_dynamics.cpp
+    src/foot_slip_clearance_cost.cpp)
+
+target_link_libraries(offline_fwd_dyn_test aligator::aligator
     pinocchio::pinocchio
     yaml-cpp)

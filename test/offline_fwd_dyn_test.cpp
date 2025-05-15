@@ -39,8 +39,8 @@ VectorXd calcNominalTorque(const Model &model, const VectorXd &q_nom)
     int nv = model.nv;
     Data data(model);
     pinocchio::rnea(model, data, q_nom, VectorXd::Zero(nv), VectorXd::Zero(nv));
-    return data.tau.tail(nv - 6);
-    // return VectorXd::Zero(nv - 6);
+    // return data.tau.tail(nv - 6);
+    return VectorXd::Zero(nv - 6);
 }
 
 void computeFutureStates(const Model &model,
@@ -124,7 +124,7 @@ std::shared_ptr<TrajOptProblem> createTrajOptProblem(const ContactFwdDynamics &d
 
         StageModel sm = StageModel(rcost, discrete_dyn);
 
-        sm.addConstraint(control_error, BoxConstraint(-u_max, u_max));
+        // sm.addConstraint(control_error, BoxConstraint(-u_max, u_max));
         stage_models.push_back(std::move(sm));
     }
 
@@ -210,7 +210,7 @@ int main(int argc, char const *argv[])
 
     /************************first solve**********************/
     solver.run(*problem, x_guess, u_guess);
-    saveVectorsToCsv("offline_test.csv", solver.results_.xs);
+    // saveVectorsToCsv("offline_test.csv", solver.results_.xs);
 
     x_guess = solver.results_.xs;
     u_guess = solver.results_.us;
@@ -223,7 +223,9 @@ int main(int argc, char const *argv[])
     VectorXd contact_forces = VectorXd::Zero(12);
     std::vector<VectorXd> contact_forces_log;
     std::cout << std::fixed << std::setprecision(2);
-    dx = 0;
+    dx = 0.5;
+    std::vector<double> solve_times; // 用于存储每次求解时间
+
     for (size_t i = 0; i < 200; i++)
     {
         // 更新期望状态
@@ -237,7 +239,11 @@ int main(int argc, char const *argv[])
         problem->setInitState(x0);
 
         // 求解
+        auto start_time = std::chrono::high_resolution_clock::now();
         solver.run(*problem, x_guess, u_guess);
+        auto end_time = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> elapsed = end_time - start_time;
+        solve_times.push_back(elapsed.count()); // 记录求解时间
 
         // 更新位置
         x0 = solver.results_.xs[1];
@@ -254,21 +260,26 @@ int main(int argc, char const *argv[])
         // 记录数据
         x_log.push_back(x0);
         u_log.push_back(solver.results_.us[0]);
-        dynamics.forward(solver.results_.xs[0], solver.results_.us[0], dyn_data);
-        for (size_t i = 0; i < 4; i++)
-        {
-            const auto &force = dyn_data.contact_forces_[i];
-            std::cout << force.transpose() << "  ";
-            contact_forces.segment(i * 3, 3) = force;
-        }
-        std::cout << std::endl;
-        contact_forces_log.push_back(contact_forces);
+        // dynamics.forward(solver.results_.xs[0], solver.results_.us[0], dyn_data);
+        // for (size_t i = 0; i < 4; i++)
+        // {
+        //     const auto &force = dyn_data.contact_forces_[i];
+        //     std::cout << force.transpose() << "  ";
+        //     contact_forces.segment(i * 3, 3) = force;
+        // }
+        // std::cout << std::endl;
+        // contact_forces_log.push_back(contact_forces);
         cost_log.push_back(solver.results_.traj_cost_);
     }
-    saveVectorsToCsv("idea_sim_x.csv", x_log);
-    saveVectorsToCsv("idea_sim_u.csv", u_log);
-    saveVectorsToCsv("idea_sim_contact_forces.csv", contact_forces_log);
-    saveVectorsToCsv("idea_sim_cost.csv", cost_log);
+    // 计算并输出平均求解时间
+    double total_time = std::accumulate(solve_times.begin(), solve_times.end(), 0.0);
+    double average_time_ms = (total_time / solve_times.size()) * 1000.0; // Convert to milliseconds
+    std::cout << "Average solve time: " << std::fixed << std::setprecision(3) << average_time_ms << " ms" << std::endl;
+
+    saveVectorsToCsv("offline_fwd_sim_x.csv", x_log);
+    saveVectorsToCsv("offline_fwd_sim_u.csv", u_log);
+    // saveVectorsToCsv("offine_fwd_sim_contact_forces.csv", contact_forces_log);
+    saveVectorsToCsv("offline_fwd_sim_cost.csv", cost_log);
 
     return 0;
 }
