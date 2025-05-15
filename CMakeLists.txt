@@ -55,3 +55,11 @@ target_link_libraries(webots_sim aligator::aligator
     yaml-cpp
     proxsuite::proxsuite
 )
+
+add_executable(contact_inv_dynamics_test
+    test/contact_inv_dynamics_test.cpp
+    src/contact_fwd_dynamics.cpp
+    src/contact_inv_dynamics_residual.cpp
+    src/contact_force.cpp)
+target_link_libraries(contact_inv_dynamics_test aligator::aligator
+    pinocchio::pinocchio)
