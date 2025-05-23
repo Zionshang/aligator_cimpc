@@ -289,7 +289,7 @@ int main(int argc, char const *argv[])
 
     /************************webots仿真**********************/
     WebotsInterface webots_interface;
-    // ContactAssessment contact_assessment(dynamics);
+    ContactAssessment contact_assessment(model, contact_params);
     RelaxedWbcSettings Rwbc_settings;
     Interpolator interpolator(model);
     Rwbc_settings.contact_ids = std::vector<pinocchio::FrameIndex>{11, 19, 27, 35};
@@ -303,7 +303,7 @@ int main(int argc, char const *argv[])
     int mpc_cycle = 10;
     int itr = 0;
     const double dt = webots_interface.timestep();
-    std::vector<VectorXd> x_log, u_log;
+    std::vector<VectorXd> x_log, u_log, qd_log, q_log;
     std::vector<double> cost_log;
     VectorXd contact_forces = VectorXd::Zero(12);
     std::vector<VectorXd> contact_forces_log;
@@ -404,7 +404,8 @@ int main(int argc, char const *argv[])
         std::cout << "=== result state ===\n";
         for (size_t i = 0; i < solver.results_.xs.size() / 2; ++i)
         {
-            std::cout << "xs[" << i << "]: " << solver.results_.xs[i].head(nq).transpose().format(Eigen::IOFormat(3, 0, ", ", ", ", "", "", "[", "]")) << std::endl;
+            std::cout << "xs[" << i << "]: " << solver.results_.xs[i].segment(7, 3).transpose().format(Eigen::IOFormat(3, 0, ", ", ", ", "", "", "[", "]"))
+                      << solver.results_.xs[i].segment(nq + 6, 3).transpose().format(Eigen::IOFormat(3, 0, ", ", ", ", "", "", "[", "]")) << std::endl;
         }
         std::cout << "=== result tau ===\n";
         for (size_t i = 0; i < solver.results_.us.size() / 2; ++i)
@@ -412,8 +413,7 @@ int main(int argc, char const *argv[])
             std::cout << "us[" << i << "]: " << solver.results_.us[i].tail(nu).transpose().format(Eigen::IOFormat(3, 0, ", ", ", ", "", "", "[", "]")) << std::endl;
         }
         std::cout << "=== End of us vector ===\n";
-        // 评估接触信息
-        // contact_assessment.update(x_interp);
+
         VectorXd qd = x_interp.segment(7, nu), vd = x_interp.segment(nq + 6, nu);
         VectorXd q = x0.segment(7, nu), v = x0.segment(nq + 6, nu);
         VectorXd tau = u_interp.tail(nu) + kp.cwiseProduct(qd - q) + kd.cwiseProduct(vd - v);
@@ -426,6 +426,9 @@ int main(int argc, char const *argv[])
         std::cout << "tau: " << tau.transpose() << std::endl;
         webots_interface.sendCmd(tau);
 #endif
+
+        // 评估接触信息
+        contact_assessment.update(x_interp.head(nq), x_interp.tail(nv));
 
         // 更新warm start
         x_guess = solver.results_.xs;
@@ -441,21 +444,25 @@ int main(int argc, char const *argv[])
         // 记录数据
         // x_log.push_back(x0);
         // u_log.push_back(solver.results_.us[0]);
-        // std::cout << "contact forces: ";
-        // for (size_t i = 0; i < 4; i++)
-        //     std::cout << contact_assessment.contact_forces()[i].transpose() << "  ";
-        // std::cout << std::endl;
+        std::cout << "contact forces: ";
+        for (size_t i = 0; i < 4; i++)
+            std::cout << contact_assessment.contact_forces()[i].transpose() << "  ";
+        std::cout << std::endl;
         // std::cout << "contact state: ";
         // for (size_t i = 0; i < 4; i++)
         //     std::cout << contact_assessment.contact_state()[i] << "  ";
         // std::cout << std::endl;
         // contact_forces_log.push_back(contact_forces);
         // cost_log.push_back(solver.results_.traj_cost_);
+        qd_log.push_back(qd);
+        q_log.push_back(q);
     }
     // saveVectorsToCsv("idea_sim_x.csv", x_log);
     // saveVectorsToCsv("idea_sim_u.csv", u_log);
-    saveVectorsToCsv("idea_sim_contact_forces.csv", contact_forces_log);
+    // saveVectorsToCsv("idea_sim_contact_forces.csv", contact_forces_log);
     // saveVectorsToCsv("idea_sim_cost.csv", cost_log);
+    saveVectorsToCsv("webots_sim_qd.csv", qd_log);
+    saveVectorsToCsv("webots_sim_q.csv", q_log);
 
     return 0;
 }
