@@ -219,14 +219,14 @@ int main(int argc, char const *argv[])
     solver.max_iters = yaml_loader.max_iter;
 
     /************************理想迭代**********************/
-    std::vector<VectorXd> x_log, u_log;
+    std::vector<VectorXd> x_log, u_log, x_ref_log;
     std::vector<double> cost_log;
     ContactFwdDynamicsData dyn_data(dynamics); // 用于打印当前地面接触力
     VectorXd contact_forces = VectorXd::Zero(12);
     std::vector<VectorXd> contact_forces_log;
     std::cout << std::fixed << std::setprecision(2);
     dx = 0;
-    for (size_t i = 0; i < 100; i++)
+    for (size_t i = 0; i < 300; i++)
     {
         // 更新期望状态
         // computeFutureStates(model, vx, x0, timestep, x_ref);
@@ -266,11 +266,13 @@ int main(int argc, char const *argv[])
         std::cout << std::endl;
         contact_forces_log.push_back(contact_forces);
         cost_log.push_back(solver.results_.traj_cost_);
+        x_ref_log.push_back(x_ref[0]);
     }
     saveVectorsToCsv("idea_sim_x.csv", x_log);
     saveVectorsToCsv("idea_sim_u.csv", u_log);
     saveVectorsToCsv("idea_sim_contact_forces.csv", contact_forces_log);
     saveVectorsToCsv("idea_sim_cost.csv", cost_log);
+    saveVectorsToCsv("idea_sim_x_ref.csv", x_ref);
 
     return 0;
 }
