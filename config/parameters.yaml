@@ -11,17 +11,17 @@ w_vel_leg_term: [10, 10, 10]
 
 w_u_leg: [2e-4, 2e-4, 2e-4]
 
-w_foot_slip_clearance: 0.3
+w_foot_slip_clearance: 0
 
 kp_leg: [50, 50, 50]
 kd_leg: [2, 2, 2]
 
-nsteps: 25
-timestep: 0.02
+nsteps: 50
+timestep: 0.01
 max_iter: 4
 
 real_contact:
-  contact_stiffness: 2000
+  contact_stiffness: 5000
   smoothing_factor: 0.01
   dissipation_velocity: 0.1
   stiction_velocity: 0.5

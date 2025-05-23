@@ -39,8 +39,8 @@ VectorXd calcNominalTorque(const Model &model, const VectorXd &q_nom)
     int nv = model.nv;
     Data data(model);
     pinocchio::rnea(model, data, q_nom, VectorXd::Zero(nv), VectorXd::Zero(nv));
-    return data.tau.tail(nv - 6);
-    // return VectorXd::Zero(nv - 6);
+    // return data.tau.tail(nv - 6);
+    return VectorXd::Zero(nv - 6);
 }
 
 void computeFutureStates(const Model &model,
@@ -72,7 +72,10 @@ void computeFutureStates(const double &dx,
 {
     for (int i = 0; i < x_ref.size(); ++i)
     {
-        x_ref[i](0) = x0(0) + dx;
+        // x_ref[i](0) = x0(0) + dx;
+        x_ref[i](2) = 0.7;
+        Eigen::Quaterniond q(Eigen::AngleAxisd(M_PI / 3, Eigen::Vector3d::UnitY()));
+        x_ref[i].segment(3, 4) = q.coeffs();
     }
 }
 
@@ -150,7 +153,7 @@ void updateStateReferences(std::shared_ptr<TrajOptProblem> problem,
 int main(int argc, char const *argv[])
 {
 
-    std::string urdf_filename = "/home/zishang/cpp_workspace/aligator_cimpc/robot/galileo_v1d6_description/urdf/galileo_v1d6.urdf";
+    std::string urdf_filename = "/home/zishang/cpp_workspace/aligator_cimpc/robot/bqr3/bqr3.urdf";
 
     Model model;
     pinocchio::urdf::buildModel(urdf_filename, model);
@@ -168,7 +171,7 @@ int main(int argc, char const *argv[])
 
     /************************initial state**********************/
     VectorXd x0 = VectorXd::Zero(nq + nv);
-    x0.head(nq) << 0.0, 0.0, 0.4,
+    x0.head(nq) << 0.0, 0.0, 0.57,
         0.0, 0.0, 0.0, 1.0,
         0.0, 0.72, -1.44,
         0.0, 0.72, -1.44,
@@ -197,7 +200,7 @@ int main(int argc, char const *argv[])
     double tol = 1e-4;
     int max_iters = 100;
     double mu_init = 1e-8;
-    aligator::SolverProxDDPTpl<double> solver(tol, mu_init, max_iters, aligator::VerboseLevel::QUIET);
+    aligator::SolverProxDDPTpl<double> solver(tol, mu_init, max_iters, aligator::VerboseLevel::VERBOSE);
     std::vector<VectorXd> x_guess, u_guess;
     x_guess.assign(nsteps + 1, x0);
     u_guess.assign(nsteps, u_nom);
@@ -222,8 +225,8 @@ int main(int argc, char const *argv[])
     VectorXd contact_forces = VectorXd::Zero(12);
     std::vector<VectorXd> contact_forces_log;
     std::cout << std::fixed << std::setprecision(2);
-    dx = 0.5;
-    for (size_t i = 0; i < 200; i++)
+    dx = 0;
+    for (size_t i = 0; i < 100; i++)
     {
         // 更新期望状态
         // computeFutureStates(model, vx, x0, timestep, x_ref);
