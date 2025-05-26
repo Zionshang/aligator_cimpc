@@ -23,13 +23,10 @@
 #include "yaml_loader.hpp"
 #include "webots_interface.hpp"
 #include "contact_assessment.hpp"
-#include "relaxed_wbc.hpp"
 #include "interpolator.hpp"
 #include "contact_inv_dynamics_residual.hpp"
 #include "kinematics_ode.hpp"
 
-#define PD
-// #define WBC
 // #define FWD_DYNAMICS
 #define INV_DYNAMICS
 
@@ -291,15 +288,7 @@ int main(int argc, char const *argv[])
     /************************webots仿真**********************/
     WebotsInterface webots_interface;
     ContactAssessment contact_assessment(model, contact_params);
-    RelaxedWbcSettings Rwbc_settings;
     Interpolator interpolator(model);
-    Rwbc_settings.contact_ids = std::vector<pinocchio::FrameIndex>{11, 19, 27, 35};
-    Rwbc_settings.mu = 1;
-    Rwbc_settings.force_size = 3;
-    Rwbc_settings.w_acc = 100;
-    Rwbc_settings.w_force = 1;
-    Rwbc_settings.verbose = false;
-    RelaxedWbc relaxed_wbc(Rwbc_settings, model);
 
     int mpc_cycle = 10;
     int itr = 0;
@@ -340,41 +329,6 @@ int main(int argc, char const *argv[])
             itr = 0;
         }
 
-#ifdef WBC
-        // 插值
-        double delay = itr * dt;
-        VectorXd x_interp(nq + nv), a_interp(nv);
-        std::vector<VectorXd> a_result = getAccelerationResult(solver, nv);
-        interpolator.interpolateState(delay, timestep, solver.results_.xs, x_interp);
-        interpolator.interpolateLinear(delay, timestep, a_result, a_interp);
-
-        // 评估接触信息
-        contact_assessment.update(x_interp);
-
-        // wbc
-        VectorXd q = x0.head(nq), v = x0.tail(nv);
-        std::vector<bool> contact_state = contact_assessment.contact_state();
-        for (size_t i = 0; i < 4; i++)
-            contact_forces.segment(i * 3, 3) = contact_assessment.contact_forces()[i];
-
-        std::cout << "contact state: ";
-        for (size_t i = 0; i < 4; i++)
-            std::cout << contact_assessment.contact_state()[i] << "  ";
-        std::cout << std::endl;
-
-        relaxed_wbc.solveQP(contact_state, q, v, a_interp, VectorXd::Zero(12), contact_forces);
-
-        std::cout << "contact forces: " << contact_forces.transpose() << std::endl;
-        std::cout << "solved_forces_: " << relaxed_wbc.solved_forces_.transpose() << std::endl;
-        std::cout << "a_interp: " << a_interp.tail(nu).transpose() << std::endl;
-        std::cout << "solved_acc_: " << relaxed_wbc.solved_acc_.tail(nu).transpose() << std::endl;
-        std::cout << "solved_torque_: " << relaxed_wbc.solved_torque_.transpose() << std::endl;
-
-        // 发送力矩
-        webots_interface.sendCmd(relaxed_wbc.solved_torque_);
-#endif
-
-#ifdef PD
         double delay = itr * dt;
         std::cout << "delay: " << delay << std::endl;
         VectorXd x_interp(nq + nv), u_interp(nu), a_interp(nv);
@@ -433,7 +387,6 @@ int main(int argc, char const *argv[])
         std::cout << "tau: " << tau.transpose() << std::endl;
         std::cout << "tau_rnea: " << tau_rnea.tail(nu).transpose() << std::endl;
         webots_interface.sendCmd(tau);
-#endif
 
         // 更新warm start
         x_guess = solver.results_.xs;

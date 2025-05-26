@@ -32,7 +32,6 @@ add_executable(webots_sim
     src/contact_force.cpp
     src/webots_interface.cpp
     src/foot_slip_clearance_cost.cpp
-    src/relaxed_wbc.cpp
     src/interpolator.cpp
     src/contact_inv_dynamics_residual.cpp)
 target_link_libraries(contact_fwd_dynamics_test aligator::aligator
