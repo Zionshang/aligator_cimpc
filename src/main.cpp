@@ -26,6 +26,7 @@
 #include "interpolator.hpp"
 #include "contact_inv_dynamics_residual.hpp"
 #include "kinematics_ode.hpp"
+#include "timer.hpp"
 
 // #define FWD_DYNAMICS
 #define INV_DYNAMICS
@@ -118,7 +119,7 @@ std::shared_ptr<TrajOptProblem> createTrajOptProblem(const ContactFwdDynamics &d
 
         StageModel sm = StageModel(rcost, discrete_dyn);
 
-        sm.addConstraint(control_error, BoxConstraint(-u_max, u_max));
+        // sm.addConstraint(control_error, BoxConstraint(-u_max, u_max));
         stage_models.push_back(std::move(sm));
     }
 
@@ -168,12 +169,15 @@ std::shared_ptr<TrajOptProblem> createTrajOptProblem(const KinematicsODE &kinema
     MatrixXd actuation = MatrixXd::Zero(model.nv, num_actuated);
     actuation.bottomRows(num_actuated).setIdentity();
     ContactInvDynamicsResidual contact_inv_dynamics_residual(ndx, model, actuation, yaml_loader.real_contact_params);
+    FootSlipClearanceCost fscc(space, nu, yaml_loader.w_foot_slip_clearance, -30.0);
+    CostFiniteDifference fscc_fini_diff(fscc, 1e-6);
 
     for (size_t i = 0; i < nsteps; i++)
     {
         auto rcost = CostStack(space, nu);
         rcost.addCost("state_cost", QuadraticStateCost(space, nu, x_ref[i], w_x * timestep));
         rcost.addCost("control_cost", QuadraticControlCost(space, u_ref[i], w_u * timestep));
+        rcost.addCost("foot_slip_clearance_cost", fscc_fini_diff);
 
         StageModel sm = StageModel(rcost, discrete_dyn);
 
@@ -252,8 +256,8 @@ int main(int argc, char const *argv[])
     /************************create problem**********************/
 
 #ifdef FWD_DYNAMICS
-    // VectorXd u_nom = calcNominalTorque(model, x0.head(nq));
-    // std::vector<VectorXd> u_ref(nsteps, u_nom);
+    VectorXd u_nom = calcNominalTorque(model, x0.head(nq));
+    std::vector<VectorXd> u_ref(nsteps, u_nom);
     ContactFwdDynamics dynamics(space, actuation, contact_params);
     auto problem = createTrajOptProblem(dynamics, nsteps, timestep, x_ref, u_ref, x0);
 #endif
@@ -286,6 +290,7 @@ int main(int argc, char const *argv[])
     solver.max_iters = yaml_loader.max_iter;
 
     /************************webots仿真**********************/
+    Timer timer("mpc");
     WebotsInterface webots_interface;
     ContactAssessment contact_assessment(model, contact_params);
     Interpolator interpolator(model);
@@ -320,11 +325,9 @@ int main(int argc, char const *argv[])
             problem->setInitState(x0);
 
             // 求解
+            timer.start();
             solver.run(*problem, x_guess, u_guess);
-
-            auto end_time = std::chrono::high_resolution_clock::now();
-            std::chrono::duration<double, std::milli> solve_time = end_time - start_time;
-            std::cout << "MPC solve time: " << solve_time.count() << " ms" << std::endl;
+            timer.stop();
 
             itr = 0;
         }
@@ -341,49 +344,51 @@ int main(int argc, char const *argv[])
         contact_assessment.update(x_interp.head(nq), x_interp.tail(nv));
 
 #ifdef FWD_DYNAMICS
-        std::cout << "=== result state ===\n";
-        for (size_t i = 0; i < solver.results_.xs.size(); ++i)
-        {
-            std::cout << "xs[" << i << "]: " << solver.results_.xs[i].head(nq).transpose().format(Eigen::IOFormat(3, 0, ", ", ", ", "", "", "[", "]")) << std::endl;
-        }
-        std::cout << "=== result tau ===\n";
-        for (size_t i = 0; i < solver.results_.us.size(); ++i)
-        {
-            std::cout << "us[" << i << "]: " << solver.results_.us[i].transpose().format(Eigen::IOFormat(3, 0, ", ", ", ", "", "", "[", "]")) << std::endl;
-        }
-        std::cout << "=== End of us vector ===\n";
+        // std::cout << "=== result state ===\n";
+        // for (size_t i = 0; i < solver.results_.xs.size(); ++i)
+        // {
+        //     std::cout << "xs[" << i << "]: " << solver.results_.xs[i].head(nq).transpose().format(Eigen::IOFormat(3, 0, ", ", ", ", "", "", "[", "]")) << std::endl;
+        // }
+        // std::cout << "=== result tau ===\n";
+        // for (size_t i = 0; i < solver.results_.us.size(); ++i)
+        // {
+        //     std::cout << "us[" << i << "]: " << solver.results_.us[i].transpose().format(Eigen::IOFormat(3, 0, ", ", ", ", "", "", "[", "]")) << std::endl;
+        // }
+        // std::cout << "=== End of us vector ===\n";
         // 评估接触信息
         // contact_assessment.update(x_interp);
 
         VectorXd qd = x_interp.segment(7, nu), vd = x_interp.segment(nq + 6, nu);
         VectorXd q = x0.segment(7, nu), v = x0.segment(nq + 6, nu);
-        VectorXd tau = tau_interp + kp.cwiseProduct(qd - q) + kd.cwiseProduct(vd - v);
+        VectorXd tau_ref = u_interp;
+        VectorXd tau = tau_ref + kp.cwiseProduct(qd - q) + kd.cwiseProduct(vd - v);
 #endif
 
 #ifdef INV_DYNAMICS
-        std::cout << "=== result state ===\n";
-        for (size_t i = 0; i < solver.results_.xs.size() / 2; ++i)
-        {
-            std::cout << "xs[" << i << "]: " << solver.results_.xs[i].segment(7, 3).transpose().format(Eigen::IOFormat(3, 0, ", ", ", ", "", "", "[", "]"))
-                      << solver.results_.xs[i].segment(nq + 6, 3).transpose().format(Eigen::IOFormat(3, 0, ", ", ", ", "", "", "[", "]")) << std::endl;
-        }
-        std::cout << "=== result tau ===\n";
-        for (size_t i = 0; i < solver.results_.us.size() / 2; ++i)
-        {
-            std::cout << "us[" << i << "]: " << solver.results_.us[i].tail(nu).transpose().format(Eigen::IOFormat(3, 0, ", ", ", ", "", "", "[", "]")) << std::endl;
-        }
-        std::cout << "=== End of us vector ===\n";
+        // std::cout << "=== result state ===\n";
+        // for (size_t i = 0; i < solver.results_.xs.size() / 2; ++i)
+        // {
+        //     std::cout << "xs[" << i << "]: " << solver.results_.xs[i].segment(7, 3).transpose().format(Eigen::IOFormat(3, 0, ", ", ", ", "", "", "[", "]"))
+        //               << solver.results_.xs[i].segment(nq + 6, 3).transpose().format(Eigen::IOFormat(3, 0, ", ", ", ", "", "", "[", "]")) << std::endl;
+        // }
+        // std::cout << "=== result tau ===\n";
+        // for (size_t i = 0; i < solver.results_.us.size() / 2; ++i)
+        // {
+        //     std::cout << "us[" << i << "]: " << solver.results_.us[i].tail(nu).transpose().format(Eigen::IOFormat(3, 0, ", ", ", ", "", "", "[", "]")) << std::endl;
+        // }
+        // std::cout << "=== End of us vector ===\n";
 
         VectorXd qd = x_interp.segment(7, nu), vd = x_interp.segment(nq + 6, nu);
         VectorXd q = x0.segment(7, nu), v = x0.segment(nq + 6, nu);
-        VectorXd tau = u_interp.tail(nu) + kp.cwiseProduct(qd - q) + kd.cwiseProduct(vd - v);
+        VectorXd tau_ref = u_interp.tail(nu);
+        VectorXd tau = tau_ref + kp.cwiseProduct(qd - q) + kd.cwiseProduct(vd - v);
 #endif
         VectorXd tau_rnea = pinocchio::rnea(model, data, x0.head(nq), x0.tail(nv), a_interp, contact_assessment.f_ext());
         std::cout << "qd: " << qd.transpose() << std::endl;
         std::cout << "q: " << q.transpose() << std::endl;
         std::cout << "vd: " << vd.transpose() << std::endl;
         std::cout << "v: " << v.transpose() << std::endl;
-        std::cout << "tau_interp: " << u_interp.tail(nu).transpose() << std::endl;
+        std::cout << "tau_d: " << tau_ref.tail(nu).transpose() << std::endl;
         std::cout << "tau: " << tau.transpose() << std::endl;
         std::cout << "tau_rnea: " << tau_rnea.tail(nu).transpose() << std::endl;
         webots_interface.sendCmd(tau);
@@ -421,6 +426,7 @@ int main(int argc, char const *argv[])
     // saveVectorsToCsv("idea_sim_cost.csv", cost_log);
     saveVectorsToCsv("webots_sim_qd.csv", qd_log);
     saveVectorsToCsv("webots_sim_q.csv", q_log);
+    timer.~Timer();
 
     return 0;
 }
