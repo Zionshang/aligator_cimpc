@@ -59,6 +59,24 @@ VectorXd calcNominalTorque(const Model &model, const VectorXd &q_nom)
     return VectorXd::Zero(nv - 6);
 }
 
+// calculate x2-x1 in manifold space
+VectorXd calcStateDifference(const Model &model, const VectorXd &x1, const VectorXd &x2)
+{
+    const int nq = model.nq;
+    const int nv = model.nv;
+    const int ndx = 2 * nv;
+
+    Eigen::VectorXd dx(ndx);
+
+    // Difference over q
+    pinocchio::difference(model, x1.head(nq), x2.head(nq), dx.head(nv));
+
+    // Difference over v
+    dx.tail(nv) = x2.tail(nv) - x1.tail(nv);
+
+    return dx;
+}
+
 void computeFutureStates(const double &dx,
                          const VectorXd &x0,
                          std::vector<VectorXd> &x_ref)
@@ -386,6 +404,7 @@ int main(int argc, char const *argv[])
         VectorXd qd = x_interp.segment(7, nu), vd = x_interp.segment(nq + 6, nu);
         VectorXd q = x0.segment(7, nu), v = x0.segment(nq + 6, nu);
         VectorXd tau_ref = u_interp.tail(nu);
+        // VectorXd tau_ref = u_interp.tail(nu) + (solver.results_.getCtrlFeedbacks()[0] * calcStateDifference(model, x0, x_interp)).tail(nu);
         VectorXd tau = tau_ref + kp.cwiseProduct(qd - q) + kd.cwiseProduct(vd - v);
 #endif
         VectorXd tau_rnea = pinocchio::rnea(model, data, x0.head(nq), x0.tail(nv), a_interp, contact_assessment.f_ext());
