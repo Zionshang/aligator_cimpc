@@ -223,6 +223,7 @@ int main(int argc, char const *argv[])
 
     Model model;
     pinocchio::urdf::buildModel(urdf_filename, model);
+    Data data(model);
     MultibodyPhaseSpace space(model);
     const int nu = model.nv - 6;
     const int nq = model.nq;
@@ -376,9 +377,14 @@ int main(int argc, char const *argv[])
 #ifdef PD
         double delay = itr * dt;
         std::cout << "delay: " << delay << std::endl;
-        VectorXd x_interp(nq + nv), u_interp(nu);
+        VectorXd x_interp(nq + nv), u_interp(nu), a_interp(nv);
         interpolator.interpolateState(delay, timestep, solver.results_.xs, x_interp);
         interpolator.interpolateLinear(delay, timestep, solver.results_.us, u_interp);
+        std::vector<VectorXd> a_result = getAccelerationResult(solver, nv);
+        interpolator.interpolateLinear(delay, timestep, a_result, a_interp);
+
+        // 评估接触信息
+        contact_assessment.update(x_interp.head(nq), x_interp.tail(nv));
 
 #ifdef FWD_DYNAMICS
         std::cout << "=== result state ===\n";
@@ -418,17 +424,16 @@ int main(int argc, char const *argv[])
         VectorXd q = x0.segment(7, nu), v = x0.segment(nq + 6, nu);
         VectorXd tau = u_interp.tail(nu) + kp.cwiseProduct(qd - q) + kd.cwiseProduct(vd - v);
 #endif
+        VectorXd tau_rnea = pinocchio::rnea(model, data, x0.head(nq), x0.tail(nv), a_interp, contact_assessment.f_ext());
         std::cout << "qd: " << qd.transpose() << std::endl;
         std::cout << "q: " << q.transpose() << std::endl;
         std::cout << "vd: " << vd.transpose() << std::endl;
         std::cout << "v: " << v.transpose() << std::endl;
         std::cout << "tau_interp: " << u_interp.tail(nu).transpose() << std::endl;
         std::cout << "tau: " << tau.transpose() << std::endl;
+        std::cout << "tau_rnea: " << tau_rnea.tail(nu).transpose() << std::endl;
         webots_interface.sendCmd(tau);
 #endif
-
-        // 评估接触信息
-        contact_assessment.update(x_interp.head(nq), x_interp.tail(nv));
 
         // 更新warm start
         x_guess = solver.results_.xs;

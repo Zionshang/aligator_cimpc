@@ -27,10 +27,12 @@ public:
             else
                 contact_state_[i] = 0;
         }
+        f_ext_ = f_ext;
     }
 
     const std::vector<bool> &contact_state() const { return contact_state_; }
     const std::vector<Vector3d> &contact_forces() const { return contact_forces_; }
+    const aligned_vector<pinocchio::Force> &f_ext() const { return f_ext_; }
 
 private:
     pinocchio::Model model_;
@@ -38,4 +40,5 @@ private:
     ContactParams<double> contact_params_;
     std::vector<bool> contact_state_;
     std::vector<Vector3d> contact_forces_;
+    aligned_vector<pinocchio::Force> f_ext_; // todo: 删除临时变量
 };
