@@ -66,6 +66,9 @@ void computeFutureStates(const double &dx,
     for (int i = 0; i < x_ref.size(); ++i)
     {
         x_ref[i](0) = x0(0) + dx;
+        // x_ref[i](2) = 0.6;
+        // Eigen::Quaterniond q_yaw(Eigen::AngleAxisd(M_PI / 3, Eigen::Vector3d::UnitY()));
+        // x_ref[i].segment(3, 4) = q_yaw.coeffs();
     }
 }
 
@@ -113,8 +116,8 @@ std::shared_ptr<TrajOptProblem> createTrajOptProblem(const ContactFwdDynamics &d
     for (size_t i = 0; i < nsteps; i++)
     {
         auto rcost = CostStack(space, nu);
-        rcost.addCost("state_cost", QuadraticStateCost(space, nu, x_ref[i], w_x * timestep));
-        rcost.addCost("control_cost", QuadraticControlCost(space, u_ref[i], w_u * timestep));
+        rcost.addCost("state_cost", QuadraticStateCost(space, nu, x_ref[i], w_x));
+        rcost.addCost("control_cost", QuadraticControlCost(space, u_ref[i], w_u));
         rcost.addCost("foot_slip_clearance_cost", fscc_fini_diff);
 
         StageModel sm = StageModel(rcost, discrete_dyn);
@@ -164,6 +167,8 @@ std::shared_ptr<TrajOptProblem> createTrajOptProblem(const KinematicsODE &kinema
 
     IntegratorSemiImplEuler discrete_dyn = IntegratorSemiImplEuler(kinematics, timestep);
     // IntegratorEuler discrete_dyn = IntegratorEuler(dynamics, timestep);
+    // IntegratorMidpoint discrete_dyn = IntegratorMidpoint(kinematics, timestep);
+    // IntegratorRK2 discrete_dyn = IntegratorRK2(kinematics, timestep);
 
     std::vector<xyz::polymorphic<StageModel>> stage_models;
     MatrixXd actuation = MatrixXd::Zero(model.nv, num_actuated);
@@ -175,8 +180,8 @@ std::shared_ptr<TrajOptProblem> createTrajOptProblem(const KinematicsODE &kinema
     for (size_t i = 0; i < nsteps; i++)
     {
         auto rcost = CostStack(space, nu);
-        rcost.addCost("state_cost", QuadraticStateCost(space, nu, x_ref[i], w_x * timestep));
-        rcost.addCost("control_cost", QuadraticControlCost(space, u_ref[i], w_u * timestep));
+        rcost.addCost("state_cost", QuadraticStateCost(space, nu, x_ref[i], w_x));
+        rcost.addCost("control_cost", QuadraticControlCost(space, u_ref[i], w_u));
         rcost.addCost("foot_slip_clearance_cost", fscc_fini_diff);
 
         StageModel sm = StageModel(rcost, discrete_dyn);
@@ -311,7 +316,6 @@ int main(int argc, char const *argv[])
     {
         // 获取当前状态
         webots_interface.recvState(x0);
-        // std::cout << "x0: " << x0.transpose() << std::endl;
 
         // 更新期望状态
         computeFutureStates(dx, x0, x_ref);
@@ -365,12 +369,13 @@ int main(int argc, char const *argv[])
 #endif
 
 #ifdef INV_DYNAMICS
-        // std::cout << "=== result state ===\n";
-        // for (size_t i = 0; i < solver.results_.xs.size() / 2; ++i)
-        // {
-        //     std::cout << "xs[" << i << "]: " << solver.results_.xs[i].segment(7, 3).transpose().format(Eigen::IOFormat(3, 0, ", ", ", ", "", "", "[", "]"))
-        //               << solver.results_.xs[i].segment(nq + 6, 3).transpose().format(Eigen::IOFormat(3, 0, ", ", ", ", "", "", "[", "]")) << std::endl;
-        // }
+        std::cout << "=== result state ===\n";
+        for (size_t i = 0; i < solver.results_.xs.size() / 2; ++i)
+        {
+            // std::cout << "xs[" << i << "]: " << solver.results_.xs[i].segment(7, 3).transpose().format(Eigen::IOFormat(3, 0, ", ", ", ", "", "", "[", "]"))
+            //           << solver.results_.xs[i].segment(nq + 6, 3).transpose().format(Eigen::IOFormat(3, 0, ", ", ", ", "", "", "[", "]")) << std::endl;
+            std::cout << "xs[" << i << "]: " << solver.results_.xs[i].transpose().format(Eigen::IOFormat(3, 0, ", ", ", ", "", "", "[", "]")) << std::endl;
+        }
         // std::cout << "=== result tau ===\n";
         // for (size_t i = 0; i < solver.results_.us.size() / 2; ++i)
         // {
