@@ -219,7 +219,7 @@ std::vector<VectorXd> getAccelerationResult(const aligator::SolverProxDDPTpl<dou
 int main(int argc, char const *argv[])
 {
 
-    std::string urdf_filename = "/home/zishang/cpp_workspace/aligator_cimpc/robot/mini_cheetah/urdf/mini_cheetah_ground_mesh.urdf";
+    std::string urdf_filename = "/home/zishang/cpp_workspace/aligator_cimpc/robot/galileo_v1d6_description/urdf/galileo_v1d6.urdf";
 
     Model model;
     pinocchio::urdf::buildModel(urdf_filename, model);
@@ -237,12 +237,12 @@ int main(int argc, char const *argv[])
 
     /************************initial state**********************/
     VectorXd x0 = VectorXd::Zero(nq + nv);
-    x0.head(nq) << 0.0, 0.0, 0.29,
+    x0.head(nq) << 0.0, 0.0, 0.4,
         0.0, 0.0, 0.0, 1.0,
-        0.0, -0.8, 1.6,
-        0.0, -0.8, 1.6,
-        0.0, -0.8, 1.6,
-        0.0, -0.8, 1.6;
+        0.0, 0.72, -1.44,
+        0.0, 0.72, -1.44,
+        0.0, 0.72, -1.44,
+        0.0, 0.72, -1.44;
 
     /************************reference state**********************/
     double vx = 0;
