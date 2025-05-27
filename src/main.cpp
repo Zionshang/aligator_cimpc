@@ -369,10 +369,17 @@ int main(int argc, char const *argv[])
 
         if (int(itr % mpc_cycle) == 0)
         {
-            auto start_time = std::chrono::high_resolution_clock::now();
-
             // 更新当前位置
             problem->setInitState(x0);
+
+            // 更新warm start
+            x_guess = solver.results_.xs;
+            u_guess = solver.results_.us;
+            x_guess.erase(x_guess.begin());
+            x_guess[0] = x0;
+            x_guess.push_back(x_guess.back());
+            u_guess.erase(u_guess.begin());
+            u_guess.push_back(u_guess.back());
 
             // 求解
             timer.start();
@@ -455,15 +462,6 @@ int main(int argc, char const *argv[])
         std::cout << "tau: " << tau.transpose() << std::endl;
         std::cout << "tau_rnea: " << tau_rnea.tail(nu).transpose() << std::endl;
         webots_interface.sendCmd(tau);
-
-        // 更新warm start
-        x_guess = solver.results_.xs;
-        u_guess = solver.results_.us;
-        x_guess.erase(x_guess.begin());
-        x_guess[0] = x0;
-        x_guess.push_back(x_guess.back());
-        u_guess.erase(u_guess.begin());
-        u_guess.push_back(u_guess.back());
 
         itr++;
 
