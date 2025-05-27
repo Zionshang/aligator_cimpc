@@ -67,7 +67,7 @@ def plot_contact_forces(csv_file):
 
 # 调用方式：
 contact_forces_csv = (
-    "/home/zishang/cpp_workspace/aligator_cimpc/build/idea_sim_contact_forces.csv"
+    "/home/zishang/cpp_workspace/aligator_cimpc/build/offine_inv_sim_contact_forces.csv"
 )
 
 plot_contact_forces(contact_forces_csv)
