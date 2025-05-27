@@ -5,31 +5,24 @@ using pinocchio::Motion;
 using pinocchio::SE3;
 
 void CalcContactForce(const Model &model, const Data &data,
-                      const GeometryModel &geom_model, GeometryData &geom_data,
-                      aligned_vector<Force> &f_ext)
+                      const GeometryModel &geom_model, const GeometryData &geom_data,
+                      aligned_vector<Force> &forces)
 {
     using std::abs, std::exp, std::log, std::max, std::pow, std::sqrt;
 
-    double contact_stiffness = 2000;   // normal force stiffness, in N/m
-    double smoothing_factor = 0.01;    // Amount of smoothing to apply when computing normal forces.
-    double dissipation_velocity = 0.1; // Hunt & Crossley-like model parameter, in m/s.
-
-    double stiction_velocity = 0.5;    // Regularization velocity, in m/s.
-    double friction_coefficient = 1.0; // Coefficient of friction.
-
     // Compliant contact parameters
-    const double &k = contact_stiffness;
-    const double &sigma = smoothing_factor;
-    // const double &dissipation_velocity = dissipation_velocity;
+    const double &k = 2000;                   // contact_stiffness
+    const double &sigma = 0.01;               // smoothing_factor
+    const double &dissipation_velocity = 0.1; // dissipation_velocity
 
     // Friction parameters.
-    const double &vs = stiction_velocity;    // Regularization.
-    const double &mu = friction_coefficient; // Coefficient of friction.
+    const double &vs = 0.5; // stiction_velocity
+    const double &mu = 1.0; // friction_coefficient
 
     const double eps = sqrt(std::numeric_limits<double>::epsilon());
     double threshold = -sigma * log(exp(eps / (sigma * k)) - 1.0);
 
-    // TODO: 是否可以删除临时变量？
+    // ! Temporary variables must be used, otherwise there will be fights in parallel comupation
     // position of contact poiont, expressed in world frame
     Vector3d pos_contact;
 
@@ -42,21 +35,22 @@ void CalcContactForce(const Model &model, const Data &data,
 
     // Transformation of contact point relative to geometry object A, geometry object B and wrold frame
     // Rotation is not taken into account
-    SE3 X_AC = SE3::Identity();
-    SE3 X_BC = SE3::Identity();
-    SE3 X_WC = SE3::Identity();
+    pinocchio::SE3 X_AC = pinocchio::SE3::Identity();
+    pinocchio::SE3 X_BC = pinocchio::SE3::Identity();
+    pinocchio::SE3 X_WC = pinocchio::SE3::Identity();
 
     // Transformation of contact point relative to joint local frame A and joint local frame B
-    SE3 X_JaC = SE3::Identity();
-    SE3 X_JbC = SE3::Identity();
+    pinocchio::SE3 X_JaC = pinocchio::SE3::Identity();
+    pinocchio::SE3 X_JbC = pinocchio::SE3::Identity();
 
     // Motion of geometry object A and geometry object B at contact point
-    Motion motion_geomAc = Motion::Zero();
-    Motion motion_geomBc = Motion::Zero();
+    pinocchio::Motion motion_geomAc = pinocchio::Motion::Zero();
+    pinocchio::Motion motion_geomBc = pinocchio::Motion::Zero();
 
     // Normal vector from geometry object B to geometry object A
     Vector3d nhat;
 
+    std::cout << "contact_force: ";
     for (size_t pair_id = 0; pair_id < geom_model.collisionPairs.size(); pair_id++)
     {
         const pinocchio::CollisionPair &cp = geom_model.collisionPairs[pair_id];
@@ -113,6 +107,7 @@ void CalcContactForce(const Model &model, const Data &data,
                 dissipation_factor = 1 - s;
             else if (s < 2)
                 dissipation_factor = (s - 2) * (s - 2) / 4;
+
             const double fn = compliant_fn * dissipation_factor;
 
             // Tangential frictional component.
@@ -123,28 +118,27 @@ void CalcContactForce(const Model &model, const Data &data,
             force_contact_t = -vel_contact_t / sqrt(vs * vs + vel_contact_t.squaredNorm()) * mu * fn;
             force_contact = nhat * fn + force_contact_t;
             force6d_contact.linear(force_contact);
-
+            std::cout << force_contact.transpose() << " ";
             // Transformation of joint local frame relative to contact frame.
             // Contact frame is fixed at contact point and alienged with world frame.
             X_WC.translation(pos_contact);
-            const SE3 &X_WJa = data.oMi[jointA_id];
-            const SE3 &X_WJb = data.oMi[jointB_id];
+            const pinocchio::SE3 &X_WJa = data.oMi[jointA_id];
+            const pinocchio::SE3 &X_WJb = data.oMi[jointB_id];
             X_JaC = X_WJa.inverse() * X_WC;
             X_JbC = X_WJb.inverse() * X_WC;
 
             // Transform contact force from contact frame to joint local frame
-            f_ext[jointA_id] = X_JaC.act(force6d_contact);
-            f_ext[jointB_id] = X_JbC.act(-force6d_contact);
+            forces[jointA_id] = X_JaC.act(force6d_contact);
+            forces[jointB_id] = X_JbC.act(-force6d_contact);
         }
         else
         {
-            f_ext[jointA_id].setZero();
-            f_ext[jointB_id].setZero();
+            forces[jointA_id].setZero();
+            forces[jointB_id].setZero();
         }
     }
-    std::cout << "---------------------------------------" << std::endl;
+    std::cout << std::endl;
 }
-
 template <typename Scalar>
 void CalcContactForceContribution(const pinocchio::ModelTpl<Scalar> &model,
                                   const pinocchio::DataTpl<Scalar> &data,

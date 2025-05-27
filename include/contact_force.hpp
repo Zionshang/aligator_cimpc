@@ -19,7 +19,7 @@ using pinocchio::container::aligned_vector;
 using Eigen::Vector3d;
 
 void CalcContactForce(const Model &model, const Data &data,
-                      const GeometryModel &geom_model, GeometryData &geom_data,
+                      const GeometryModel &geom_model, const GeometryData &geom_data,
                       aligned_vector<Force> &f_ext);
 
 template <typename Scalar>

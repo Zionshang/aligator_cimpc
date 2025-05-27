@@ -1,5 +1,6 @@
 #include <aligator/core/traj-opt-problem.hpp>
 #include <pinocchio/parsers/urdf.hpp>
+#include <pinocchio/parsers/srdf.hpp>
 
 #include <aligator/modelling/costs/sum-of-costs.hpp>
 #include <aligator/modelling/costs/quad-state-cost.hpp>
@@ -244,10 +245,17 @@ int main(int argc, char const *argv[])
 {
 
     std::string urdf_filename = "/home/zishang/cpp_workspace/aligator_cimpc/robot/mini_cheetah/urdf/mini_cheetah_ground_mesh.urdf";
+    std::string srdf_filename = "/home/zishang/cpp_workspace/aligator_cimpc/robot/mini_cheetah/srdf/mini_cheetah.srdf";
 
     Model model;
     pinocchio::urdf::buildModel(urdf_filename, model);
     Data data(model);
+    pinocchio::GeometryModel geom_model;
+    pinocchio::urdf::buildGeom(model, urdf_filename, pinocchio::COLLISION, geom_model);
+    geom_model.addAllCollisionPairs();
+    pinocchio::srdf::removeCollisionPairs(model, geom_model, srdf_filename);
+    pinocchio::GeometryData geom_data(geom_model);
+
     MultibodyPhaseSpace space(model);
     const int nu = model.nv - 6;
     const int nq = model.nq;
@@ -258,6 +266,23 @@ int main(int argc, char const *argv[])
 
     int nsteps = yaml_loader.nsteps;
     double timestep = yaml_loader.timestep;
+    pinocchio::FrameIndex foot_frame_id1 = model.getFrameId("LF_FOOT");
+    pinocchio::FrameIndex foot_frame_id2 = model.getFrameId("RF_FOOT");
+    pinocchio::FrameIndex foot_frame_id3 = model.getFrameId("LH_FOOT");
+    pinocchio::FrameIndex foot_frame_id4 = model.getFrameId("RH_FOOT");
+    std::cout << "foot_frame_id1: " << foot_frame_id1 << std::endl;
+    std::cout << "foot_frame_id2: " << foot_frame_id2 << std::endl;
+    std::cout << "foot_frame_id3: " << foot_frame_id3 << std::endl;
+    std::cout << "foot_frame_id4: " << foot_frame_id4 << std::endl;
+
+    pinocchio::JointIndex joint_frame_id1 = model.getJointId("thigh_fl_to_knee_fl_j");
+    pinocchio::JointIndex joint_frame_id2 = model.getJointId("thigh_fr_to_knee_fr_j");
+    pinocchio::JointIndex joint_frame_id3 = model.getJointId("thigh_hl_to_knee_hl_j");
+    pinocchio::JointIndex joint_frame_id4 = model.getJointId("thigh_hr_to_knee_hr_j");
+    std::cout << "joint_frame_id1: " << joint_frame_id1 << std::endl;
+    std::cout << "joint_frame_id2: " << joint_frame_id2 << std::endl;
+    std::cout << "joint_frame_id3: " << joint_frame_id3 << std::endl;
+    std::cout << "joint_frame_id4: " << joint_frame_id4 << std::endl;
 
     /************************initial state**********************/
     VectorXd x0 = VectorXd::Zero(nq + nv);
@@ -311,7 +336,11 @@ int main(int argc, char const *argv[])
     x_guess = solver.results_.xs;
     u_guess = solver.results_.us;
     solver.max_iters = yaml_loader.max_iter;
-
+    std::cout << std::fixed << std::setprecision(3);
+    for (size_t i = 0; i < solver.results_.xs.size(); ++i)
+    {
+        std::cout << "xs[" << i << "]: " << solver.results_.xs[i].transpose().format(Eigen::IOFormat(3, 0, ", ", ", ", "", "", "[", "]")) << std::endl;
+    }
     /************************webots仿真**********************/
     Timer timer("mpc");
     WebotsInterface webots_interface;
@@ -325,7 +354,6 @@ int main(int argc, char const *argv[])
     std::vector<double> cost_log;
     VectorXd contact_forces = VectorXd::Zero(12);
     std::vector<VectorXd> contact_forces_log;
-    std::cout << std::fixed << std::setprecision(3);
     dx = 0;
     VectorXd kp(nu), kd(nu);
     kp << yaml_loader.kp_leg, yaml_loader.kp_leg, yaml_loader.kp_leg, yaml_loader.kp_leg;
@@ -363,7 +391,18 @@ int main(int argc, char const *argv[])
         interpolator.interpolateLinear(delay, timestep, a_result, a_interp);
 
         // 评估接触信息
-        contact_assessment.update(x_interp.head(nq), x_interp.tail(nv));
+        pinocchio::container::aligned_vector<pinocchio::Force> force_ext(model.njoints, pinocchio::Force::Zero());
+        for (size_t i = 0; i < solver.results_.xs.size() / 2; i++)
+        {
+            contact_assessment.update(solver.results_.xs[i].head(nq), solver.results_.xs[i].tail(nv));
+            std::cout << "contact forces: ";
+            for (size_t i = 0; i < 4; i++)
+                std::cout << contact_assessment.contact_forces()[i].transpose() << "  ";
+            std::cout << std::endl;
+            // pinocchio::forwardKinematics(model, data, solver.results_.xs[i].head(nq), solver.results_.xs[i].tail(nv));
+            // pinocchio::computeDistances(model, data, geom_model, geom_data, solver.results_.xs[i].head(nq));
+            // CalcContactForce(model, data, geom_model, geom_data, force_ext);
+        }
 
 #ifdef FWD_DYNAMICS
         // std::cout << "=== result state ===\n";
@@ -390,9 +429,9 @@ int main(int argc, char const *argv[])
         std::cout << "=== result state ===\n";
         for (size_t i = 0; i < solver.results_.xs.size() / 2; ++i)
         {
-            // std::cout << "xs[" << i << "]: " << solver.results_.xs[i].segment(7, 3).transpose().format(Eigen::IOFormat(3, 0, ", ", ", ", "", "", "[", "]"))
-            //           << solver.results_.xs[i].segment(nq + 6, 3).transpose().format(Eigen::IOFormat(3, 0, ", ", ", ", "", "", "[", "]")) << std::endl;
-            std::cout << "xs[" << i << "]: " << solver.results_.xs[i].transpose().format(Eigen::IOFormat(3, 0, ", ", ", ", "", "", "[", "]")) << std::endl;
+            std::cout << "xs[" << i << "]: " << solver.results_.xs[i].segment(7, 12).transpose().format(Eigen::IOFormat(3, 0, ", ", ", ", "", "", "[", "]"))
+                      << solver.results_.xs[i].segment(nq + 6, 12).transpose().format(Eigen::IOFormat(3, 0, ", ", ", ", "", "", "[", "]")) << std::endl;
+            // std::cout << "xs[" << i << "]: " << solver.results_.xs[i].transpose().format(Eigen::IOFormat(3, 0, ", ", ", ", "", "", "[", "]")) << std::endl;
         }
         // std::cout << "=== result tau ===\n";
         // for (size_t i = 0; i < solver.results_.us.size() / 2; ++i)
@@ -431,10 +470,10 @@ int main(int argc, char const *argv[])
         // 记录数据
         // x_log.push_back(x0);
         // u_log.push_back(solver.results_.us[0]);
-        std::cout << "contact forces: ";
-        for (size_t i = 0; i < 4; i++)
-            std::cout << contact_assessment.contact_forces()[i].transpose() << "  ";
-        std::cout << std::endl;
+        // std::cout << "contact forces: ";
+        // for (size_t i = 0; i < 4; i++)
+        //     std::cout << contact_assessment.contact_forces()[i].transpose() << "  ";
+        // std::cout << std::endl;
         // std::cout << "contact state: ";
         // for (size_t i = 0; i < 4; i++)
         //     std::cout << contact_assessment.contact_state()[i] << "  ";
