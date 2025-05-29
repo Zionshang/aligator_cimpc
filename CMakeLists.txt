@@ -69,3 +69,7 @@ add_executable(offline_fwd_dyn_test test/offline_fwd_dyn_test.cpp
 target_link_libraries(offline_fwd_dyn_test aligator::aligator
     pinocchio::pinocchio
     yaml-cpp)
+
+
+add_executable(inv_dynamics_test test/inv_dynamics_test.cpp)
+target_link_libraries(inv_dynamics_test pinocchio::pinocchio)
