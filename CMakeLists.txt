@@ -33,7 +33,8 @@ add_executable(webots_sim
     src/webots_interface.cpp
     src/foot_slip_clearance_cost.cpp
     src/interpolator.cpp
-    src/contact_inv_dynamics_residual.cpp)
+    src/contact_inv_dynamics_residual.cpp
+    src/contact_inv_dynamics_residual2.cpp)
 target_link_directories(webots_sim PRIVATE ${WEBOTS_HOME}/lib/controller)
 set(WEBOTSLIBRARIES m ${CMAKE_SHARED_LIBRARY_PREFIX}Controller${CMAKE_SHARED_LIBRARY_SUFFIX} ${CMAKE_SHARED_LIBRARY_PREFIX}CppController${CMAKE_SHARED_LIBRARY_SUFFIX})
 target_include_directories(webots_sim PRIVATE ${WEBOTS_HOME}/include/controller/cpp)
