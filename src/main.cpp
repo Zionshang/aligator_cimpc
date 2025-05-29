@@ -28,6 +28,7 @@
 #include "contact_inv_dynamics_residual.hpp"
 #include "kinematics_ode.hpp"
 #include "timer.hpp"
+#include "contact_inv_dynamics_residual2.hpp"
 
 // #define FWD_DYNAMICS
 #define INV_DYNAMICS
@@ -193,6 +194,7 @@ std::shared_ptr<TrajOptProblem> createTrajOptProblem(const KinematicsODE &kinema
     MatrixXd actuation = MatrixXd::Zero(model.nv, num_actuated);
     actuation.bottomRows(num_actuated).setIdentity();
     ContactInvDynamicsResidual contact_inv_dynamics_residual(ndx, model, actuation, yaml_loader.real_contact_params);
+    ContactInvDynamicsResidual2 contact_inv_dynamics_residual2(ndx, model, actuation, timestep, yaml_loader.real_contact_params);
     FootSlipClearanceCost fscc(space, nu, yaml_loader.w_foot_slip_clearance, -30.0);
     CostFiniteDifference fscc_fini_diff(fscc, 1e-6);
 
@@ -205,7 +207,8 @@ std::shared_ptr<TrajOptProblem> createTrajOptProblem(const KinematicsODE &kinema
 
         StageModel sm = StageModel(rcost, discrete_dyn);
 
-        sm.addConstraint(contact_inv_dynamics_residual, EqualityConstraint());
+        // sm.addConstraint(contact_inv_dynamics_residual, EqualityConstraint());
+        sm.addConstraint(contact_inv_dynamics_residual2, EqualityConstraint());
         stage_models.push_back(std::move(sm));
     }
 
@@ -320,7 +323,7 @@ int main(int argc, char const *argv[])
     double tol = 1e-4;
     int max_iters = 100;
     double mu_init = 1e-8;
-    aligator::SolverProxDDPTpl<double> solver(tol, mu_init, max_iters, aligator::VerboseLevel::VERBOSE);
+    aligator::SolverProxDDPTpl<double> solver(tol, mu_init, max_iters, aligator::VerboseLevel::QUIET);
     std::vector<VectorXd> x_guess, u_guess;
     x_guess.assign(nsteps + 1, x0);
     u_guess.assign(nsteps, u_nom);
@@ -433,13 +436,13 @@ int main(int argc, char const *argv[])
 #endif
 
 #ifdef INV_DYNAMICS
-        std::cout << "=== result state ===\n";
-        for (size_t i = 0; i < solver.results_.xs.size() / 2; ++i)
-        {
-            std::cout << "xs[" << i << "]: " << solver.results_.xs[i].segment(7, 12).transpose().format(Eigen::IOFormat(3, 0, ", ", ", ", "", "", "[", "]"))
-                      << solver.results_.xs[i].segment(nq + 6, 12).transpose().format(Eigen::IOFormat(3, 0, ", ", ", ", "", "", "[", "]")) << std::endl;
-            // std::cout << "xs[" << i << "]: " << solver.results_.xs[i].transpose().format(Eigen::IOFormat(3, 0, ", ", ", ", "", "", "[", "]")) << std::endl;
-        }
+        // std::cout << "=== result state ===\n";
+        // for (size_t i = 0; i < solver.results_.xs.size() / 2; ++i)
+        // {
+        //     std::cout << "xs[" << i << "]: " << solver.results_.xs[i].segment(7, 12).transpose().format(Eigen::IOFormat(3, 0, ", ", ", ", "", "", "[", "]"))
+        //               << solver.results_.xs[i].segment(nq + 6, 12).transpose().format(Eigen::IOFormat(3, 0, ", ", ", ", "", "", "[", "]")) << std::endl;
+        //     // std::cout << "xs[" << i << "]: " << solver.results_.xs[i].transpose().format(Eigen::IOFormat(3, 0, ", ", ", ", "", "", "[", "]")) << std::endl;
+        // }
         // std::cout << "=== result tau ===\n";
         // for (size_t i = 0; i < solver.results_.us.size() / 2; ++i)
         // {

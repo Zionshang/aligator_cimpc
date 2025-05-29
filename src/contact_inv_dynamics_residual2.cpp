@@ -5,9 +5,8 @@
 
 ContactInvDynamicsResidual2::ContactInvDynamicsResidual2(int ndx, const Model &model, MatrixXd actuation, double timestep,
                                                          ContactParams<double> contact_params)
-    : model_(model),
-      StageFunction(ndx, model_.nv + actuation.cols(), model_.nv),
-      timestep_(timestep), actuation_matrix_(actuation), contact_params_(contact_params)
+    : StageFunction(ndx, model.nv + actuation.cols(), model.nv),
+      model_(model), timestep_(timestep), actuation_matrix_(actuation), contact_params_(contact_params)
 {
     const int nv = model_.nv;
     if (nv != actuation.rows())
@@ -107,8 +106,8 @@ ContactInvDynamicsResidualData2::ContactInvDynamicsResidualData2(const ContactIn
 
     ADVectorX ad_q_plus = pinocchio::integrate(ad_model, ad_q, ad_dq);
 
-    ADVectorX ad_v_next = ad_v + ad_a * resdl.timestep_;                                        // 先更新速度
-    ADVectorX ad_q_next = pinocchio::integrate(model_, ad_q_plus, ad_v_next * resdl.timestep_); // 再更新位置
+    ADVectorX ad_v_next = ad_v + ad_a * resdl.timestep_;                                          // 先更新速度
+    ADVectorX ad_q_next = pinocchio::integrate(ad_model, ad_q_plus, ad_v_next * resdl.timestep_); // 再更新位置
 
     pinocchio::forwardKinematics(ad_model, ad_data, ad_q_next, ad_v_next);
     pinocchio::updateFramePlacements(ad_model, ad_data);
