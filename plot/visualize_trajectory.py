@@ -3,16 +3,22 @@ import pinocchio as pin
 import pandas as pd
 import time
 from pinocchio.visualize import MeshcatVisualizer
+import example_robot_data as erd
 
 # csv_path = "/home/zishang/cpp_workspace/aligator_cimpc/build/offline_test.csv"
 csv_path = "/home/zishang/cpp_workspace/aligator_cimpc/build/offline_inv_sim_x.csv"
 
-# 读取URDF文件和创建机器人模型
-urdf_path = "/home/zishang/cpp_workspace/aligator_cimpc/robot/mini_cheetah/urdf/mini_cheetah_ground_mesh.urdf"
-# urdf_path = "/home/zishang/cpp_workspace/aligator_cimpc/robot/galileo_v1d6_description/urdf/galileo_v1d6.urdf"
-model = pin.buildModelFromUrdf(urdf_path)
-visual_model = pin.buildGeomFromUrdf(model, urdf_path, pin.GeometryType.VISUAL)
-collision_model = pin.buildGeomFromUrdf(model, urdf_path, pin.GeometryType.COLLISION)
+# # 读取URDF文件和创建机器人模型
+# urdf_path = "/home/zishang/cpp_workspace/aligator_cimpc/robot/mini_cheetah/urdf/mini_cheetah_ground_mesh.urdf"
+# # urdf_path = "/home/zishang/cpp_workspace/aligator_cimpc/robot/galileo_v1d6_description/urdf/galileo_v1d6.urdf"
+# model = pin.buildModelFromUrdf(urdf_path)
+# visual_model = pin.buildGeomFromUrdf(model, urdf_path, pin.GeometryType.VISUAL)
+# collision_model = pin.buildGeomFromUrdf(model, urdf_path, pin.GeometryType.COLLISION)
+
+robot_wrapper = erd.load('go2')
+model = robot_wrapper.model
+visual_model = robot_wrapper.visual_model
+collision_model = robot_wrapper.collision_model
 
 # 设置可视化器
 viz = MeshcatVisualizer(model, collision_model, visual_model)

@@ -52,29 +52,6 @@ VectorXd calcNominalTorque(const Model &model, const VectorXd &q_nom)
     return VectorXd::Zero(nv + nv - 6);
 }
 
-void computeFutureStates(const Model &model,
-                         const double &vx,
-                         const VectorXd &x0,
-                         double dt,
-                         std::vector<VectorXd> &x_ref)
-{
-    Data data(model);
-
-    int nq = model.nq;
-    int nv = model.nv;
-
-    VectorXd q = x0.head(nq);
-    VectorXd v = x0.tail(nv);
-
-    x_ref[0] = x0;
-
-    for (int i = 1; i < x_ref.size(); ++i)
-    {
-        x_ref[i](0) = x_ref[i - 1](0) + vx * dt;
-        x_ref[i](nq) = vx;
-    }
-}
-
 void computeFutureStates(const double &dx,
                          const VectorXd &x0,
                          std::vector<VectorXd> &x_ref)
@@ -125,12 +102,15 @@ std::shared_ptr<TrajOptProblem> createTrajOptProblem(const KinematicsODE &kinema
     MatrixXd actuation = MatrixXd::Zero(model.nv, num_actuated);
     actuation.bottomRows(num_actuated).setIdentity();
     ContactInvDynamicsResidual contact_inv_dynamics_residual(ndx, model, actuation, yaml_loader.real_contact_params);
+    FootSlipClearanceCost fscc(space, nu, yaml_loader.w_foot_slip_clearance, -30.0);
+    CostFiniteDifference fscc_fini_diff(fscc, 1e-6);
 
     for (size_t i = 0; i < nsteps; i++)
     {
         auto rcost = CostStack(space, nu);
         rcost.addCost("state_cost", QuadraticStateCost(space, nu, x_ref[i], w_x));
         rcost.addCost("control_cost", QuadraticControlCost(space, u_ref[i], w_u));
+        rcost.addCost("foot_slip_clearance_cost", fscc_fini_diff);
 
         StageModel sm = StageModel(rcost, discrete_dyn);
 
@@ -161,10 +141,10 @@ void updateStateReferences(std::shared_ptr<TrajOptProblem> problem,
 int main(int argc, char const *argv[])
 {
 
-    std::string urdf_filename = "/home/zishang/cpp_workspace/aligator_cimpc/robot/mini_cheetah/urdf/mini_cheetah_ground_mesh.urdf";
+    std::string urdf_filename = EXAMPLE_ROBOT_DATA_MODEL_DIR "/go2_description/urdf/go2.urdf";
 
     Model model;
-    pinocchio::urdf::buildModel(urdf_filename, model);
+    pinocchio::urdf::buildModel(urdf_filename, pinocchio::JointModelFreeFlyer(), model);
     MultibodyPhaseSpace space(model);
     const int nu = model.nv - 6;
     const int nq = model.nq;
@@ -181,19 +161,17 @@ int main(int argc, char const *argv[])
 
     /************************initial state**********************/
     VectorXd x0 = VectorXd::Zero(nq + nv);
-    x0.head(nq) << 0.0, 0.0, 0.29,
+    x0.head(nq) << 0.0, 0.0, 0.34,
         0.0, 0.0, 0.0, 1.0,
-        0.0, -0.8, 1.6,
-        0.0, -0.8, 1.6,
-        0.0, -0.8, 1.6,
-        0.0, -0.8, 1.6;
+        0.0, 0.785, -1.44,
+        0.0, 0.785, -1.44,
+        0.0, 0.785, -1.44,
+        0.0, 0.785, -1.44;
 
     /************************reference state**********************/
-    double vx = 0.5;
     double dx = 0;
 
     std::vector<VectorXd> x_ref(nsteps, x0);
-    // computeFutureStates(model, vx, x0, timestep, x_ref);
     computeFutureStates(dx, x0, x_ref);
     VectorXd u_nom = calcNominalTorque(model, x0.head(nq));
     std::vector<VectorXd> u_ref(nsteps, u_nom);
@@ -234,7 +212,7 @@ int main(int argc, char const *argv[])
     VectorXd contact_forces = VectorXd::Zero(12);
     std::vector<VectorXd> contact_forces_log;
     std::cout << std::fixed << std::setprecision(2);
-    dx = 0;
+    dx = 0.5;
     std::vector<double> solve_times; // 用于存储每次求解时间
     ContactAssessment contact_assessment(model, contact_params);
     

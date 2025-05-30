@@ -69,7 +69,8 @@ add_executable(offline_inv_dyn_test test/offline_inv_dyn_test.cpp
 
 target_link_libraries(offline_inv_dyn_test aligator::aligator
     pinocchio::pinocchio
-    yaml-cpp)
+    yaml-cpp
+    example-robot-data::example-robot-data)
 
 add_executable(offline_fwd_dyn_test test/offline_fwd_dyn_test.cpp
     src/contact_force.cpp
