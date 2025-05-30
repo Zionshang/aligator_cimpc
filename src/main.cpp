@@ -83,12 +83,17 @@ void computeFutureStates(const double &dx,
                          const VectorXd &x0,
                          std::vector<VectorXd> &x_ref)
 {
+    // for (int i = 0; i < x_ref.size(); ++i)
+    // {
+    //     x_ref[i](0) = x0(0) + dx;
+    //     // x_ref[i](2) = 0.6;
+    //     // Eigen::Quaterniond q_yaw(Eigen::AngleAxisd(M_PI / 3, Eigen::Vector3d::UnitY()));
+    //     // x_ref[i].segment(3, 4) = q_yaw.coeffs();
+    // }
+    x_ref.back()(0) = x0(0) + dx;
     for (int i = 0; i < x_ref.size(); ++i)
     {
-        x_ref[i](0) = x0(0) + dx;
-        // x_ref[i](2) = 0.6;
-        // Eigen::Quaterniond q_yaw(Eigen::AngleAxisd(M_PI / 3, Eigen::Vector3d::UnitY()));
-        // x_ref[i].segment(3, 4) = q_yaw.coeffs();
+        x_ref[i](0) = x0(0) + (x_ref.back()(0) - x0(0)) * i / (x_ref.size() - 1);
     }
 }
 
@@ -207,14 +212,14 @@ std::shared_ptr<TrajOptProblem> createTrajOptProblem(const KinematicsODE &kinema
 
         StageModel sm = StageModel(rcost, discrete_dyn);
 
-        if (i == 0)
-        {
+        // if (i == 0)
+        // {
             sm.addConstraint(contact_inv_dynamics_residual2, EqualityConstraint());
-        }
-        else
-        {
-            sm.addConstraint(contact_inv_dynamics_residual, EqualityConstraint());
-        }
+        // }
+        // else
+        // {
+        //     sm.addConstraint(contact_inv_dynamics_residual, EqualityConstraint());
+        // }
         stage_models.push_back(std::move(sm));
     }
 
@@ -237,7 +242,6 @@ void updateStateReferences(std::shared_ptr<TrajOptProblem> problem,
     QuadraticStateCost *qsc = cs->getComponent<QuadraticStateCost>("term_state_cost");
     qsc->setTarget(x_ref.back());
 }
-
 
 int main(int argc, char const *argv[])
 {
@@ -292,11 +296,9 @@ int main(int argc, char const *argv[])
         0.0, -0.8, 1.6;
 
     /************************reference state**********************/
-    double vx = 0;
-    double dx = 0;
+    double dx = 0.5;
 
     std::vector<VectorXd> x_ref(nsteps, x0);
-    // computeFutureStates(model, vx, x0, timestep, x_ref);
     computeFutureStates(dx, x0, x_ref);
 
     /************************create problem**********************/
@@ -318,7 +320,7 @@ int main(int argc, char const *argv[])
     double tol = 1e-4;
     int max_iters = 100;
     double mu_init = 1e-8;
-    aligator::SolverProxDDPTpl<double> solver(tol, mu_init, max_iters, aligator::VerboseLevel::QUIET);
+    aligator::SolverProxDDPTpl<double> solver(tol, mu_init, max_iters, aligator::VerboseLevel::VERBOSE);
     std::vector<VectorXd> x_guess, u_guess;
     x_guess.assign(nsteps + 1, x0);
     u_guess.assign(nsteps, u_nom);
@@ -335,10 +337,10 @@ int main(int argc, char const *argv[])
     u_guess = solver.results_.us;
     solver.max_iters = yaml_loader.max_iter;
     std::cout << std::fixed << std::setprecision(3);
-    for (size_t i = 0; i < solver.results_.xs.size(); ++i)
-    {
-        std::cout << "xs[" << i << "]: " << solver.results_.xs[i].transpose().format(Eigen::IOFormat(3, 0, ", ", ", ", "", "", "[", "]")) << std::endl;
-    }
+    // for (size_t i = 0; i < solver.results_.xs.size(); ++i)
+    // {
+    //     std::cout << "xs[" << i << "]: " << solver.results_.xs[i].transpose().format(Eigen::IOFormat(3, 0, ", ", ", ", "", "", "[", "]")) << std::endl;
+    // }
     /************************webots仿真**********************/
     Timer timer("mpc");
     WebotsInterface webots_interface;
@@ -352,7 +354,7 @@ int main(int argc, char const *argv[])
     std::vector<double> cost_log;
     VectorXd contact_forces = VectorXd::Zero(12);
     std::vector<VectorXd> contact_forces_log;
-    dx = 0;
+    dx = 0.5;
     VectorXd kp(nu), kd(nu);
     kp << yaml_loader.kp_leg, yaml_loader.kp_leg, yaml_loader.kp_leg, yaml_loader.kp_leg;
     kd << yaml_loader.kd_leg, yaml_loader.kd_leg, yaml_loader.kd_leg, yaml_loader.kd_leg;
@@ -361,12 +363,18 @@ int main(int argc, char const *argv[])
         // 获取当前状态
         webots_interface.recvState(x0);
 
-        // 更新期望状态
-        computeFutureStates(dx, x0, x_ref);
-        updateStateReferences(problem, x_ref);
+        // // Print x_ref
+        // for (size_t i = 0; i < x_ref.size(); ++i)
+        // {
+        //     std::cout << "x_ref[" << i << "]: " << x_ref[i].transpose().format(Eigen::IOFormat(3, 0, ", ", ", ", "", "", "[", "]")) << std::endl;
+        // }
 
         if (int(itr % mpc_cycle) == 0)
         {
+            // 更新期望状态
+            computeFutureStates(dx, x0, x_ref);
+            updateStateReferences(problem, x_ref);
+
             // 更新当前位置
             problem->setInitState(x0);
 
@@ -393,19 +401,19 @@ int main(int argc, char const *argv[])
         interpolator.interpolateState(delay, timestep, solver.results_.xs, x_interp);
         interpolator.interpolateLinear(delay, timestep, solver.results_.us, u_interp);
 
-        // // 评估接触信息
+        // 评估接触信息
         // pinocchio::container::aligned_vector<pinocchio::Force> force_ext(model.njoints, pinocchio::Force::Zero());
-        // for (size_t i = 0; i < solver.results_.xs.size() / 2; i++)
-        // {
-        //     contact_assessment.update(solver.results_.xs[i].head(nq), solver.results_.xs[i].tail(nv));
-        //     std::cout << "contact forces: ";
-        //     for (size_t i = 0; i < 4; i++)
-        //         std::cout << contact_assessment.contact_forces()[i].transpose() << "  ";
-        //     std::cout << std::endl;
-        //     // pinocchio::forwardKinematics(model, data, solver.results_.xs[i].head(nq), solver.results_.xs[i].tail(nv));
-        //     // pinocchio::computeDistances(model, data, geom_model, geom_data, solver.results_.xs[i].head(nq));
-        //     // CalcContactForce(model, data, geom_model, geom_data, force_ext);
-        // }
+        for (size_t i = 0; i < solver.results_.xs.size(); i++)
+        {
+            contact_assessment.update(solver.results_.xs[i].head(nq), solver.results_.xs[i].tail(nv));
+            std::cout << "contact forces: ";
+            for (size_t i = 0; i < 4; i++)
+                std::cout << contact_assessment.contact_forces()[i].transpose() << "  ";
+            std::cout << std::endl;
+            // pinocchio::forwardKinematics(model, data, solver.results_.xs[i].head(nq), solver.results_.xs[i].tail(nv));
+            // pinocchio::computeDistances(model, data, geom_model, geom_data, solver.results_.xs[i].head(nq));
+            // CalcContactForce(model, data, geom_model, geom_data, force_ext);
+        }
 
 #ifdef FWD_DYNAMICS
         // std::cout << "=== result state ===\n";
