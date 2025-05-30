@@ -39,19 +39,18 @@ private:
     webots::Gyro *gyro_;
     webots::Keyboard *keyboard_;
 
-    std::string robot_name_ = "MiniCheetah";
-    std::string imu_name_ = "trunk_imu_inertial";
-    std::string gyro_name_ = "trunk_imu_gyro";
+    std::string robot_name_ = "go2";
+    std::string imu_name_ = "inertial unit";
+    std::string gyro_name_ = "gyro";
     std::string accelerometer_name_ = "accelerometer";
-    std::vector<std::string> joint_motor_name_ = {"torso_to_abduct_fl_j", "abduct_fl_to_thigh_fl_j", "thigh_fl_to_knee_fl_j",
-                                                  "torso_to_abduct_fr_j", "abduct_fr_to_thigh_fr_j", "thigh_fr_to_knee_fr_j",
-                                                  "torso_to_abduct_hl_j", "abduct_hl_to_thigh_hl_j", "thigh_hl_to_knee_hl_j",
-                                                  "torso_to_abduct_hr_j", "abduct_hr_to_thigh_hr_j", "thigh_hr_to_knee_hr_j"};
-    std::vector<std::string> joint_sensor_name_ = {"torso_to_abduct_fl_j_sensor", "abduct_fl_to_thigh_fl_j_sensor", "thigh_fl_to_knee_fl_j_sensor",
-                                                   "torso_to_abduct_fr_j_sensor", "abduct_fr_to_thigh_fr_j_sensor", "thigh_fr_to_knee_fr_j_sensor",
-                                                   "torso_to_abduct_hl_j_sensor", "abduct_hl_to_thigh_hl_j_sensor", "thigh_hl_to_knee_hl_j_sensor",
-                                                   "torso_to_abduct_hr_j_sensor", "abduct_hr_to_thigh_hr_j_sensor", "thigh_hr_to_knee_hr_j_sensor"};
-
+    std::vector<std::string> joint_motor_name_ = {"FL_hip_joint", "FL_thigh_joint", "FL_calf_joint",
+                                                  "FR_hip_joint", "FR_thigh_joint", "FR_calf_joint",
+                                                  "RL_hip_joint", "RL_thigh_joint", "RL_calf_joint",
+                                                  "RR_hip_joint", "RR_thigh_joint", "RR_calf_joint"};
+    std::vector<std::string> joint_sensor_name_ = {"FL_hip_joint_sensor", "FL_thigh_joint_sensor", "FL_calf_joint_sensor",
+                                                   "FR_hip_joint_sensor", "FR_thigh_joint_sensor", "FR_calf_joint_sensor",
+                                                   "RL_hip_joint_sensor", "RL_thigh_joint_sensor", "RL_calf_joint_sensor",
+                                                   "RR_hip_joint_sensor", "RR_thigh_joint_sensor", "RR_calf_joint_sensor"};
     int num_joints_;
     int key_, last_key_;
 };

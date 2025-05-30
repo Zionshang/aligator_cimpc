@@ -146,9 +146,9 @@ void CalcContactForceContribution(const pinocchio::ModelTpl<Scalar> &model,
                                   const ContactParams<Scalar> &contact_params)
 {
 
-    const std::vector<int> foot_frame_ids{11, 19, 27, 35};
+    const std::vector<int> foot_frame_ids{14, 32, 54, 72}; // todo: 使用参数传递
     const std::vector<int> joint_ids{4, 7, 10, 13};
-    const double foot_radius = 0.0175;
+    const double foot_radius = 0.022;
 
     using std::abs, std::exp, std::log, std::max, std::pow, std::sqrt;
 
@@ -278,9 +278,9 @@ void CalcContactForceContributionAD(const pinocchio::ModelTpl<Scalar> &model,
     using CppAD::pow;
     using CppAD::sqrt;
 
-    const std::vector<int> foot_frame_ids{11, 19, 27, 35};
+    const std::vector<int> foot_frame_ids{14, 32, 54, 72}; // todo: 使用参数传递
     const std::vector<int> joint_ids{4, 7, 10, 13};
-    const Scalar foot_radius = Scalar(0.0175);
+    const Scalar foot_radius = Scalar(0.022);
 
     const Scalar k = contact_params.contact_stiffness;
     const Scalar sigma = contact_params.smoothing_factor;
@@ -377,9 +377,9 @@ void CalcContactForceContribution(const pinocchio::ModelTpl<Scalar> &model,
                                   const ContactParams<Scalar> &contact_params,
                                   std::vector<Vector3d> &contact_forces)
 {
-    const std::vector<int> foot_frame_ids{11, 19, 27, 35};
-    const std::vector<int> joint_ids{4, 7, 10, 13};
-    const double foot_radius = 0.0175;
+    const std::vector<int> foot_frame_ids{14, 32, 54, 72}; // todo: 使用参数传递
+    const std::vector<int> joint_ids{4, 7, 10, 13};        // todo: 使用参数传递
+    const double foot_radius = 0.022;                      // todo: 使用参数传递
 
     using std::abs, std::exp, std::log, std::max, std::pow, std::sqrt;
 

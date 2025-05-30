@@ -11,10 +11,10 @@ WebotsInterface::WebotsInterface()
     joint_sensor_.assign(num_joints_, nullptr);
 
     last_q_.resize(joint_sensor_name_.size());
-    last_q_ << 0.0, -0.8, 1.6,
-        0.0, -0.8, 1.6,
-        0.0, -0.8, 1.6,
-        0.0, -0.8, 1.6;
+    last_q_ << 0.0, 0.785, -1.44,
+        0.0, 0.785, -1.44,
+        0.0, 0.785, -1.44,
+        0.0, 0.785, -1.44;
 
     initRecv();
     initSend();
@@ -85,6 +85,11 @@ void WebotsInterface::initRecv()
     for (int i = 0; i < num_joints_; i++)
     {
         joint_sensor_[i] = supervisor_->getPositionSensor(joint_sensor_name_[i]);
+        if (joint_sensor_[i] == NULL)
+        {
+            std::cerr << "Error: Can not find position sensor named " << joint_sensor_name_[i] << " !" << std::endl;
+            exit(1);
+        }
         joint_sensor_[i]->enable(time_step_);
     }
     keyboard_ = supervisor_->getKeyboard();
@@ -94,5 +99,12 @@ void WebotsInterface::initRecv()
 void WebotsInterface::initSend()
 {
     for (int i = 0; i < num_joints_; i++)
+    {
         joint_motor_[i] = supervisor_->getMotor(joint_motor_name_[i]);
+        if (joint_motor_[i] == NULL)
+        {
+            std::cerr << "Error: Can not find motor named " << joint_motor_name_[i] << " !" << std::endl;
+            exit(1);
+        }
+    }
 }

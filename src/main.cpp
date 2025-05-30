@@ -238,21 +238,14 @@ void updateStateReferences(std::shared_ptr<TrajOptProblem> problem,
     qsc->setTarget(x_ref.back());
 }
 
-
 int main(int argc, char const *argv[])
 {
 
-    std::string urdf_filename = "/home/zishang/cpp_workspace/aligator_cimpc/robot/mini_cheetah/urdf/mini_cheetah_ground_mesh.urdf";
-    std::string srdf_filename = "/home/zishang/cpp_workspace/aligator_cimpc/robot/mini_cheetah/srdf/mini_cheetah.srdf";
+    std::string urdf_filename = EXAMPLE_ROBOT_DATA_MODEL_DIR "/go2_description/urdf/go2.urdf";
 
     Model model;
-    pinocchio::urdf::buildModel(urdf_filename, model);
+    pinocchio::urdf::buildModel(urdf_filename, pinocchio::JointModelFreeFlyer(), model);
     Data data(model);
-    pinocchio::GeometryModel geom_model;
-    pinocchio::urdf::buildGeom(model, urdf_filename, pinocchio::COLLISION, geom_model);
-    geom_model.addAllCollisionPairs();
-    pinocchio::srdf::removeCollisionPairs(model, geom_model, srdf_filename);
-    pinocchio::GeometryData geom_data(geom_model);
 
     MultibodyPhaseSpace space(model);
     const int nu = model.nv - 6;
@@ -264,19 +257,19 @@ int main(int argc, char const *argv[])
 
     int nsteps = yaml_loader.nsteps;
     double timestep = yaml_loader.timestep;
-    pinocchio::FrameIndex foot_frame_id1 = model.getFrameId("LF_FOOT");
-    pinocchio::FrameIndex foot_frame_id2 = model.getFrameId("RF_FOOT");
-    pinocchio::FrameIndex foot_frame_id3 = model.getFrameId("LH_FOOT");
-    pinocchio::FrameIndex foot_frame_id4 = model.getFrameId("RH_FOOT");
+    pinocchio::FrameIndex foot_frame_id1 = model.getFrameId("FL_foot");
+    pinocchio::FrameIndex foot_frame_id2 = model.getFrameId("FR_foot");
+    pinocchio::FrameIndex foot_frame_id3 = model.getFrameId("RL_foot");
+    pinocchio::FrameIndex foot_frame_id4 = model.getFrameId("RR_foot");
     std::cout << "foot_frame_id1: " << foot_frame_id1 << std::endl;
     std::cout << "foot_frame_id2: " << foot_frame_id2 << std::endl;
     std::cout << "foot_frame_id3: " << foot_frame_id3 << std::endl;
     std::cout << "foot_frame_id4: " << foot_frame_id4 << std::endl;
 
-    pinocchio::JointIndex joint_frame_id1 = model.getJointId("thigh_fl_to_knee_fl_j");
-    pinocchio::JointIndex joint_frame_id2 = model.getJointId("thigh_fr_to_knee_fr_j");
-    pinocchio::JointIndex joint_frame_id3 = model.getJointId("thigh_hl_to_knee_hl_j");
-    pinocchio::JointIndex joint_frame_id4 = model.getJointId("thigh_hr_to_knee_hr_j");
+    pinocchio::JointIndex joint_frame_id1 = model.getJointId("FL_calf_joint");
+    pinocchio::JointIndex joint_frame_id2 = model.getJointId("FR_calf_joint");
+    pinocchio::JointIndex joint_frame_id3 = model.getJointId("RL_calf_joint");
+    pinocchio::JointIndex joint_frame_id4 = model.getJointId("RR_calf_joint");
     std::cout << "joint_frame_id1: " << joint_frame_id1 << std::endl;
     std::cout << "joint_frame_id2: " << joint_frame_id2 << std::endl;
     std::cout << "joint_frame_id3: " << joint_frame_id3 << std::endl;
@@ -284,19 +277,17 @@ int main(int argc, char const *argv[])
 
     /************************initial state**********************/
     VectorXd x0 = VectorXd::Zero(nq + nv);
-    x0.head(nq) << 0.0, 0.0, 0.29,
+    x0.head(nq) << 0.0, 0.0, 0.34,
         0.0, 0.0, 0.0, 1.0,
-        0.0, -0.8, 1.6,
-        0.0, -0.8, 1.6,
-        0.0, -0.8, 1.6,
-        0.0, -0.8, 1.6;
+        0.0, 0.785, -1.44,
+        0.0, 0.785, -1.44,
+        0.0, 0.785, -1.44,
+        0.0, 0.785, -1.44;
 
     /************************reference state**********************/
-    double vx = 0;
     double dx = 0;
 
     std::vector<VectorXd> x_ref(nsteps, x0);
-    // computeFutureStates(model, vx, x0, timestep, x_ref);
     computeFutureStates(dx, x0, x_ref);
 
     /************************create problem**********************/
@@ -318,7 +309,7 @@ int main(int argc, char const *argv[])
     double tol = 1e-4;
     int max_iters = 100;
     double mu_init = 1e-8;
-    aligator::SolverProxDDPTpl<double> solver(tol, mu_init, max_iters, aligator::VerboseLevel::QUIET);
+    aligator::SolverProxDDPTpl<double> solver(tol, mu_init, max_iters, aligator::VerboseLevel::VERBOSE);
     std::vector<VectorXd> x_guess, u_guess;
     x_guess.assign(nsteps + 1, x0);
     u_guess.assign(nsteps, u_nom);
@@ -334,6 +325,7 @@ int main(int argc, char const *argv[])
     x_guess = solver.results_.xs;
     u_guess = solver.results_.us;
     solver.max_iters = yaml_loader.max_iter;
+    solver.verbose_ = aligator::VerboseLevel::QUIET;
     std::cout << std::fixed << std::setprecision(3);
     for (size_t i = 0; i < solver.results_.xs.size(); ++i)
     {

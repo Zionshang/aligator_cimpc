@@ -4,6 +4,7 @@ project(aligator_cimpc VERSION 0.1.0 LANGUAGES C CXX)
 find_package(aligator REQUIRED)
 find_package(pinocchio REQUIRED)
 find_package(proxsuite REQUIRED)
+find_package(example-robot-data REQUIRED)
 
 include_directories(include)
 
@@ -26,6 +27,14 @@ target_link_libraries(contact_fwd_dynamics_test aligator::aligator
 
 # webots
 set(WEBOTS_HOME "/usr/local/webots")
+set(WEBOTS_LIB_DIR "${WEBOTS_HOME}/lib/controller")
+set(WEBOTS_INCLUDE_DIR "${WEBOTS_HOME}/include/controller/cpp")
+set(WEBOTS_LIBS
+    m
+    ${CMAKE_SHARED_LIBRARY_PREFIX}Controller${CMAKE_SHARED_LIBRARY_SUFFIX}
+    ${CMAKE_SHARED_LIBRARY_PREFIX}CppController${CMAKE_SHARED_LIBRARY_SUFFIX}
+)
+
 add_executable(webots_sim
     src/main.cpp
     src/contact_fwd_dynamics.cpp
@@ -35,14 +44,14 @@ add_executable(webots_sim
     src/interpolator.cpp
     src/contact_inv_dynamics_residual.cpp
     src/contact_inv_dynamics_residual2.cpp)
-target_link_directories(webots_sim PRIVATE ${WEBOTS_HOME}/lib/controller)
-set(WEBOTSLIBRARIES m ${CMAKE_SHARED_LIBRARY_PREFIX}Controller${CMAKE_SHARED_LIBRARY_SUFFIX} ${CMAKE_SHARED_LIBRARY_PREFIX}CppController${CMAKE_SHARED_LIBRARY_SUFFIX})
-target_include_directories(webots_sim PRIVATE ${WEBOTS_HOME}/include/controller/cpp)
+target_include_directories(webots_sim PRIVATE ${WEBOTS_INCLUDE_DIR})
+target_link_directories(webots_sim PRIVATE ${WEBOTS_LIB_DIR})
 target_link_libraries(webots_sim aligator::aligator
     pinocchio::pinocchio
-    ${WEBOTSLIBRARIES}
+    ${WEBOTS_LIBS}
     yaml-cpp
     proxsuite::proxsuite
+    example-robot-data::example-robot-data
 )
 
 add_executable(contact_inv_dynamics_test
