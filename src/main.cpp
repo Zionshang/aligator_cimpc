@@ -238,17 +238,6 @@ void updateStateReferences(std::shared_ptr<TrajOptProblem> problem,
     qsc->setTarget(x_ref.back());
 }
 
-std::vector<VectorXd> getAccelerationResult(const aligator::SolverProxDDPTpl<double> &solver, int nv)
-{
-    std::vector<VectorXd> a;
-    for (size_t i = 0; i < solver.workspace_.problem_data.stage_data.size(); i++)
-    {
-        auto int_data = std::dynamic_pointer_cast<ExplicitIntegratorData>(
-            solver.workspace_.problem_data.stage_data[i]->dynamics_data);
-        a.push_back(int_data->continuous_data->xdot_.tail(nv));
-    }
-    return a;
-}
 
 int main(int argc, char const *argv[])
 {
@@ -400,25 +389,23 @@ int main(int argc, char const *argv[])
 
         double delay = itr * dt;
         std::cout << "delay: " << delay << std::endl;
-        VectorXd x_interp(nq + nv), u_interp(nu), a_interp(nv);
+        VectorXd x_interp(nq + nv), u_interp(nu);
         interpolator.interpolateState(delay, timestep, solver.results_.xs, x_interp);
         interpolator.interpolateLinear(delay, timestep, solver.results_.us, u_interp);
-        std::vector<VectorXd> a_result = getAccelerationResult(solver, nv);
-        interpolator.interpolateLinear(delay, timestep, a_result, a_interp);
 
-        // 评估接触信息
-        pinocchio::container::aligned_vector<pinocchio::Force> force_ext(model.njoints, pinocchio::Force::Zero());
-        for (size_t i = 0; i < solver.results_.xs.size() / 2; i++)
-        {
-            contact_assessment.update(solver.results_.xs[i].head(nq), solver.results_.xs[i].tail(nv));
-            std::cout << "contact forces: ";
-            for (size_t i = 0; i < 4; i++)
-                std::cout << contact_assessment.contact_forces()[i].transpose() << "  ";
-            std::cout << std::endl;
-            // pinocchio::forwardKinematics(model, data, solver.results_.xs[i].head(nq), solver.results_.xs[i].tail(nv));
-            // pinocchio::computeDistances(model, data, geom_model, geom_data, solver.results_.xs[i].head(nq));
-            // CalcContactForce(model, data, geom_model, geom_data, force_ext);
-        }
+        // // 评估接触信息
+        // pinocchio::container::aligned_vector<pinocchio::Force> force_ext(model.njoints, pinocchio::Force::Zero());
+        // for (size_t i = 0; i < solver.results_.xs.size() / 2; i++)
+        // {
+        //     contact_assessment.update(solver.results_.xs[i].head(nq), solver.results_.xs[i].tail(nv));
+        //     std::cout << "contact forces: ";
+        //     for (size_t i = 0; i < 4; i++)
+        //         std::cout << contact_assessment.contact_forces()[i].transpose() << "  ";
+        //     std::cout << std::endl;
+        //     // pinocchio::forwardKinematics(model, data, solver.results_.xs[i].head(nq), solver.results_.xs[i].tail(nv));
+        //     // pinocchio::computeDistances(model, data, geom_model, geom_data, solver.results_.xs[i].head(nq));
+        //     // CalcContactForce(model, data, geom_model, geom_data, force_ext);
+        // }
 
 #ifdef FWD_DYNAMICS
         // std::cout << "=== result state ===\n";
@@ -462,14 +449,12 @@ int main(int argc, char const *argv[])
         // VectorXd tau_ref = u_interp.tail(nu) + (solver.results_.getCtrlFeedbacks()[0] * calcStateDifference(model, x0, x_interp)).tail(nu);
         VectorXd tau = tau_ref + kp.cwiseProduct(qd - q) + kd.cwiseProduct(vd - v);
 #endif
-        VectorXd tau_rnea = pinocchio::rnea(model, data, x0.head(nq), x0.tail(nv), a_interp, contact_assessment.f_ext());
         std::cout << "qd: " << qd.transpose() << std::endl;
         std::cout << "q: " << q.transpose() << std::endl;
         std::cout << "vd: " << vd.transpose() << std::endl;
         std::cout << "v: " << v.transpose() << std::endl;
         std::cout << "tau_d: " << tau_ref.tail(nu).transpose() << std::endl;
         std::cout << "tau: " << tau.transpose() << std::endl;
-        std::cout << "tau_rnea: " << tau_rnea.tail(nu).transpose() << std::endl;
         webots_interface.sendCmd(tau);
 
         itr++;
@@ -487,15 +472,15 @@ int main(int argc, char const *argv[])
         // std::cout << std::endl;
         // contact_forces_log.push_back(contact_forces);
         // cost_log.push_back(solver.results_.traj_cost_);
-        qd_log.push_back(qd);
-        q_log.push_back(q);
+        // qd_log.push_back(qd);
+        // q_log.push_back(q);
     }
     // saveVectorsToCsv("idea_sim_x.csv", x_log);
     // saveVectorsToCsv("idea_sim_u.csv", u_log);
     // saveVectorsToCsv("idea_sim_contact_forces.csv", contact_forces_log);
     // saveVectorsToCsv("idea_sim_cost.csv", cost_log);
-    saveVectorsToCsv("webots_sim_qd.csv", qd_log);
-    saveVectorsToCsv("webots_sim_q.csv", q_log);
+    // saveVectorsToCsv("webots_sim_qd.csv", qd_log);
+    // saveVectorsToCsv("webots_sim_q.csv", q_log);
     timer.~Timer();
 
     return 0;
