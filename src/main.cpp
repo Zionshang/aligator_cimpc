@@ -207,8 +207,14 @@ std::shared_ptr<TrajOptProblem> createTrajOptProblem(const KinematicsODE &kinema
 
         StageModel sm = StageModel(rcost, discrete_dyn);
 
-        // sm.addConstraint(contact_inv_dynamics_residual, EqualityConstraint());
-        sm.addConstraint(contact_inv_dynamics_residual2, EqualityConstraint());
+        if (i == 0)
+        {
+            sm.addConstraint(contact_inv_dynamics_residual2, EqualityConstraint());
+        }
+        else
+        {
+            sm.addConstraint(contact_inv_dynamics_residual, EqualityConstraint());
+        }
         stage_models.push_back(std::move(sm));
     }
 

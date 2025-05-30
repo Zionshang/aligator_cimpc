@@ -3,29 +3,21 @@ w_pos_leg: [0, 0, 0]
 w_vel_body: [1, 1, 1, 1, 1, 1]
 w_vel_leg: [0.1, 0.1, 0.1]
 
-# w_pos_body_term: [1000, 1000, 1000, 1000, 1000, 1000]
-# w_pos_leg_term: [100, 100, 100]
+w_pos_body_term: [1000, 1000, 1000, 1000, 1000, 1000]
+w_pos_leg_term: [100, 100, 100]
 
-# w_vel_body_term: [100, 100, 100, 100, 100, 100]
-# w_vel_leg_term: [10, 10, 10]
+w_vel_body_term: [100, 100, 100, 100, 100, 100]
+w_vel_leg_term: [10, 10, 10]
 
-# w_u_leg: [1e-3, 1e-3, 1e-3]
-
-w_pos_body_term: [10, 10, 10, 10, 10, 10]
-w_pos_leg_term: [1, 1, 1]
-
-w_vel_body_term: [1, 1, 1, 1, 1, 1]
-w_vel_leg_term: [0.1, 0.1, 0.1]
-
-w_u_leg: [1e-2, 1e-2, 1e-2]
+w_u_leg: [1e-3, 1e-3, 1e-3]
 
 w_foot_slip_clearance: 0
 
 kp_leg: [50, 50, 50]
 kd_leg: [2, 2, 2]
 
-nsteps: 20
-timestep: 0.05
+nsteps: 40
+timestep: 0.02
 max_iter: 2
 
 real_contact:
