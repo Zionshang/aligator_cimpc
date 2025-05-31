@@ -74,3 +74,13 @@ target_link_libraries(offline_fwd_dyn_test aligator::aligator
 
 add_executable(inv_dynamics_test test/inv_dynamics_test.cpp)
 target_link_libraries(inv_dynamics_test pinocchio::pinocchio)
+
+add_executable(cost_comparation
+    test/cost_comparation.cpp
+    src/contact_force.cpp
+    src/contact_inv_dynamics_residual.cpp
+)
+target_link_libraries(cost_comparation
+    pinocchio::pinocchio
+    aligator::aligator
+    yaml-cpp)
