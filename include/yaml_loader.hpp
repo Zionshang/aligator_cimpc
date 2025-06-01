@@ -19,6 +19,7 @@ struct YamlLoader
     Eigen::VectorXd w_vel_leg_term;
     Eigen::VectorXd w_u_leg;
     double w_foot_slip_clearance;
+    double w_symmetric_control;
 
     Eigen::VectorXd kp_leg;
     Eigen::VectorXd kd_leg;
@@ -46,7 +47,8 @@ struct YamlLoader
             w_vel_leg_term = yamlSequenceToEigen(config["w_vel_leg_term"]);
             w_u_leg = yamlSequenceToEigen(config["w_u_leg"]);
             w_foot_slip_clearance = config["w_foot_slip_clearance"].as<double>();
-
+            w_symmetric_control = config["w_symmetric_control"].as<double>();
+            
             kp_leg = yamlSequenceToEigen(config["kp_leg"]);
             kd_leg = yamlSequenceToEigen(config["kd_leg"]);
             

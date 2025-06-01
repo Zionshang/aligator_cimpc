@@ -65,7 +65,9 @@ target_link_libraries(contact_inv_dynamics_test aligator::aligator
 add_executable(offline_inv_dyn_test test/offline_inv_dyn_test.cpp
     src/contact_force.cpp
     src/contact_inv_dynamics_residual.cpp
-    src/foot_slip_clearance_cost.cpp)
+    src/contact_inv_dynamics_residual2.cpp
+    src/foot_slip_clearance_cost.cpp
+    src/symmetric_control_residual.cpp)
 
 target_link_libraries(offline_inv_dyn_test aligator::aligator
     pinocchio::pinocchio
@@ -81,6 +83,12 @@ target_link_libraries(offline_fwd_dyn_test aligator::aligator
     pinocchio::pinocchio
     yaml-cpp)
 
-
 add_executable(inv_dynamics_test test/inv_dynamics_test.cpp)
 target_link_libraries(inv_dynamics_test pinocchio::pinocchio)
+
+add_executable(symmetric_control_residual_test
+    test/symmetric_control_residual_test.cpp
+    src/symmetric_control_residual.cpp)
+target_link_libraries(symmetric_control_residual_test
+    aligator::aligator
+    example-robot-data::example-robot-data)

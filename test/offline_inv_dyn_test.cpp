@@ -21,8 +21,10 @@
 #include "logger.hpp"
 #include "yaml_loader.hpp"
 #include "contact_inv_dynamics_residual.hpp"
+#include "contact_inv_dynamics_residual2.hpp"
 #include "kinematics_ode.hpp"
 #include "contact_assessment.hpp"
+#include "symmetric_control_residual.hpp"
 
 using aligator::context::TrajOptProblem;
 using StageModel = aligator::StageModelTpl<double>;
@@ -38,7 +40,7 @@ using QuadraticResidualCost = aligator::QuadraticResidualCostTpl<double>;
 using FunctionSliceXpr = aligator::FunctionSliceXprTpl<double>;
 using EqualityConstraint = proxsuite::nlp::EqualityConstraintTpl<double>;
 
-std::string yaml_filename = "/home/zishang/cpp_workspace/aligator_cimpc/config/parameters.yaml";
+std::string yaml_filename = "/home/zishang/cpp_workspace/aligator_cimpc/config/parameters_walk.yaml";
 YamlLoader yaml_loader(yaml_filename);
 
 VectorXd calcNominalTorque(const Model &model, const VectorXd &q_nom)
@@ -101,9 +103,10 @@ std::shared_ptr<TrajOptProblem> createTrajOptProblem(const KinematicsODE &kinema
     std::vector<xyz::polymorphic<StageModel>> stage_models;
     MatrixXd actuation = MatrixXd::Zero(model.nv, num_actuated);
     actuation.bottomRows(num_actuated).setIdentity();
-    ContactInvDynamicsResidual contact_inv_dynamics_residual(ndx, model, actuation, yaml_loader.real_contact_params);
+    ContactInvDynamicsResidual2 contact_inv_dynamics_residual(ndx, model, actuation, timestep, yaml_loader.real_contact_params);
     FootSlipClearanceCost fscc(space, nu, yaml_loader.w_foot_slip_clearance, -30.0);
     CostFiniteDifference fscc_fini_diff(fscc, 1e-6);
+    SymmetricControlResidual symmetric_control_residual(ndx, nu, num_actuated);
 
     for (size_t i = 0; i < nsteps; i++)
     {
@@ -111,6 +114,9 @@ std::shared_ptr<TrajOptProblem> createTrajOptProblem(const KinematicsODE &kinema
         rcost.addCost("state_cost", QuadraticStateCost(space, nu, x_ref[i], w_x));
         rcost.addCost("control_cost", QuadraticControlCost(space, u_ref[i], w_u));
         rcost.addCost("foot_slip_clearance_cost", fscc_fini_diff);
+        rcost.addCost("symmetric_control_cost",
+                      QuadraticResidualCost(space, symmetric_control_residual,
+                                            yaml_loader.w_symmetric_control * MatrixXd::Identity(4, 4)));
 
         StageModel sm = StageModel(rcost, discrete_dyn);
 
@@ -215,7 +221,7 @@ int main(int argc, char const *argv[])
     dx = 0.5;
     std::vector<double> solve_times; // 用于存储每次求解时间
     ContactAssessment contact_assessment(model, contact_params);
-    
+
     for (size_t i = 0; i < 200; i++)
     {
         // 更新期望状态

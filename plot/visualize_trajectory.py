@@ -15,7 +15,7 @@ csv_path = "/home/zishang/cpp_workspace/aligator_cimpc/build/offline_inv_sim_x.c
 # visual_model = pin.buildGeomFromUrdf(model, urdf_path, pin.GeometryType.VISUAL)
 # collision_model = pin.buildGeomFromUrdf(model, urdf_path, pin.GeometryType.COLLISION)
 
-robot_wrapper = erd.load('go2')
+robot_wrapper = erd.load('go1')
 model = robot_wrapper.model
 visual_model = robot_wrapper.visual_model
 collision_model = robot_wrapper.collision_model
