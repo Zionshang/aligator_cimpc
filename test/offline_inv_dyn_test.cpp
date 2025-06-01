@@ -58,6 +58,15 @@ void computeFutureStates(const double &dx,
                          const VectorXd &x0,
                          std::vector<VectorXd> &x_ref)
 {
+    // x_ref.back() = x0;
+    // x_ref.back()[0] += dx;
+
+    // for (int i = 0; i < x_ref.size(); ++i)
+    // {
+    //     double alpha = static_cast<double>(i) / (x_ref.size() - 1);
+    //     x_ref[i] = (1.0 - alpha) * x0 + alpha * x_ref.back();
+    // }
+
     for (int i = 0; i < x_ref.size(); ++i)
     {
         x_ref[i](0) = x0(0) + dx;
