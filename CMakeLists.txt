@@ -79,6 +79,7 @@ add_executable(cost_comparation
     test/cost_comparation.cpp
     src/contact_force.cpp
     src/contact_inv_dynamics_residual.cpp
+    src/contact_inv_dynamics_residual2.cpp
 )
 target_link_libraries(cost_comparation
     pinocchio::pinocchio
