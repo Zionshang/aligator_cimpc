@@ -25,13 +25,8 @@
 #include "webots_interface.hpp"
 #include "contact_assessment.hpp"
 #include "interpolator.hpp"
-#include "contact_inv_dynamics_residual.hpp"
 #include "kinematics_ode.hpp"
 #include "timer.hpp"
-#include "contact_inv_dynamics_residual2.hpp"
-
-// #define FWD_DYNAMICS
-#define INV_DYNAMICS
 
 using aligator::context::TrajOptProblem;
 using StageModel = aligator::StageModelTpl<double>;
@@ -59,24 +54,6 @@ VectorXd calcNominalTorque(const Model &model, const VectorXd &q_nom)
     pinocchio::rnea(model, data, q_nom, VectorXd::Zero(nv), VectorXd::Zero(nv));
     // return data.tau.tail(nv - 6);
     return VectorXd::Zero(nv - 6);
-}
-
-// calculate x2-x1 in manifold space
-VectorXd calcStateDifference(const Model &model, const VectorXd &x1, const VectorXd &x2)
-{
-    const int nq = model.nq;
-    const int nv = model.nv;
-    const int ndx = 2 * nv;
-
-    Eigen::VectorXd dx(ndx);
-
-    // Difference over q
-    pinocchio::difference(model, x1.head(nq), x2.head(nq), dx.head(nv));
-
-    // Difference over v
-    dx.tail(nv) = x2.tail(nv) - x1.tail(nv);
-
-    return dx;
 }
 
 void computeFutureStates(const double &dx,
@@ -123,9 +100,6 @@ std::shared_ptr<TrajOptProblem> createTrajOptProblem(const ContactFwdDynamics &d
     MatrixXd w_u = w_u_diag.asDiagonal();
 
     IntegratorSemiImplEuler discrete_dyn = IntegratorSemiImplEuler(dynamics, timestep);
-    // IntegratorEuler discrete_dyn = IntegratorEuler(dynamics, timestep);
-    // IntegratorMidpoint discrete_dyn = IntegratorMidpoint(dynamics, timestep);
-    // IntegratorRK2 discrete_dyn = IntegratorRK2(dynamics, timestep);
 
     std::vector<xyz::polymorphic<StageModel>> stage_models;
     FootSlipClearanceCost fscc(space, nu, yaml_loader.w_foot_slip_clearance, -30.0);
@@ -152,78 +126,6 @@ std::shared_ptr<TrajOptProblem> createTrajOptProblem(const ContactFwdDynamics &d
     return std::make_shared<TrajOptProblem>(x0, stage_models, term_cost);
 }
 
-std::shared_ptr<TrajOptProblem> createTrajOptProblem(const KinematicsODE &kinematics,
-                                                     const Model &model,
-                                                     int nsteps, double timestep,
-                                                     const std::vector<VectorXd> &x_ref,
-                                                     const std::vector<VectorXd> &u_ref,
-                                                     const VectorXd &x0)
-{
-    const auto space = kinematics.space();
-    const int num_actuated = model.nv - 6; // Number of actuated joints
-    const int nu = kinematics.nu();        // Number of control inputs
-    const int ndx = space.ndx();           // Number of state variables
-    const int nv = model.nv;
-
-    // Define stage state weights
-    VectorXd w_x_diag(ndx);
-    w_x_diag << yaml_loader.w_pos_body,
-        yaml_loader.w_pos_leg, yaml_loader.w_pos_leg, yaml_loader.w_pos_leg, yaml_loader.w_pos_leg,
-        yaml_loader.w_vel_body,
-        yaml_loader.w_vel_leg, yaml_loader.w_vel_leg, yaml_loader.w_vel_leg, yaml_loader.w_vel_leg;
-    MatrixXd w_x = w_x_diag.asDiagonal();
-
-    // Define terminal state weights
-    w_x_diag << yaml_loader.w_pos_body_term,
-        yaml_loader.w_pos_leg_term, yaml_loader.w_pos_leg_term, yaml_loader.w_pos_leg_term, yaml_loader.w_pos_leg_term,
-        yaml_loader.w_vel_body_term,
-        yaml_loader.w_vel_leg_term, yaml_loader.w_vel_leg_term, yaml_loader.w_vel_leg_term, yaml_loader.w_vel_leg_term;
-    MatrixXd w_x_term = w_x_diag.asDiagonal();
-
-    // Define input state weights
-    VectorXd w_u_diag(nu);
-    w_u_diag << Eigen::VectorXd::Zero(nv), yaml_loader.w_u_leg, yaml_loader.w_u_leg, yaml_loader.w_u_leg, yaml_loader.w_u_leg;
-    MatrixXd w_u = w_u_diag.asDiagonal();
-
-    IntegratorSemiImplEuler discrete_dyn = IntegratorSemiImplEuler(kinematics, timestep);
-    // IntegratorEuler discrete_dyn = IntegratorEuler(dynamics, timestep);
-    // IntegratorMidpoint discrete_dyn = IntegratorMidpoint(kinematics, timestep);
-    // IntegratorRK2 discrete_dyn = IntegratorRK2(kinematics, timestep);
-
-    std::vector<xyz::polymorphic<StageModel>> stage_models;
-    MatrixXd actuation = MatrixXd::Zero(model.nv, num_actuated);
-    actuation.bottomRows(num_actuated).setIdentity();
-    ContactInvDynamicsResidual contact_inv_dynamics_residual(ndx, model, actuation, yaml_loader.real_contact_params);
-    ContactInvDynamicsResidual2 contact_inv_dynamics_residual2(ndx, model, actuation, timestep, yaml_loader.real_contact_params);
-    FootSlipClearanceCost fscc(space, nu, yaml_loader.w_foot_slip_clearance, -30.0);
-    CostFiniteDifference fscc_fini_diff(fscc, 1e-6);
-
-    for (size_t i = 0; i < nsteps; i++)
-    {
-        auto rcost = CostStack(space, nu);
-        rcost.addCost("state_cost", QuadraticStateCost(space, nu, x_ref[i], w_x));
-        rcost.addCost("control_cost", QuadraticControlCost(space, u_ref[i], w_u));
-        rcost.addCost("foot_slip_clearance_cost", fscc_fini_diff);
-
-        StageModel sm = StageModel(rcost, discrete_dyn);
-
-        if (i == 0)
-        {
-            sm.addConstraint(contact_inv_dynamics_residual2, EqualityConstraint());
-        }
-        else
-        {
-            sm.addConstraint(contact_inv_dynamics_residual, EqualityConstraint());
-        }
-        stage_models.push_back(std::move(sm));
-    }
-
-    auto term_cost = CostStack(space, nu);
-    term_cost.addCost("term_state_cost", QuadraticStateCost(space, nu, x_ref.back(), w_x_term));
-
-    return std::make_shared<TrajOptProblem>(x0, stage_models, term_cost);
-}
-
 void updateStateReferences(std::shared_ptr<TrajOptProblem> problem,
                            const std::vector<VectorXd> &x_ref)
 {
@@ -238,32 +140,14 @@ void updateStateReferences(std::shared_ptr<TrajOptProblem> problem,
     qsc->setTarget(x_ref.back());
 }
 
-std::vector<VectorXd> getAccelerationResult(const aligator::SolverProxDDPTpl<double> &solver, int nv)
-{
-    std::vector<VectorXd> a;
-    for (size_t i = 0; i < solver.workspace_.problem_data.stage_data.size(); i++)
-    {
-        auto int_data = std::dynamic_pointer_cast<ExplicitIntegratorData>(
-            solver.workspace_.problem_data.stage_data[i]->dynamics_data);
-        a.push_back(int_data->continuous_data->xdot_.tail(nv));
-    }
-    return a;
-}
-
 int main(int argc, char const *argv[])
 {
 
     std::string urdf_filename = "/home/zishang/cpp_workspace/aligator_cimpc/robot/mini_cheetah/urdf/mini_cheetah_ground_mesh.urdf";
-    std::string srdf_filename = "/home/zishang/cpp_workspace/aligator_cimpc/robot/mini_cheetah/srdf/mini_cheetah.srdf";
 
     Model model;
     pinocchio::urdf::buildModel(urdf_filename, model);
     Data data(model);
-    pinocchio::GeometryModel geom_model;
-    pinocchio::urdf::buildGeom(model, urdf_filename, pinocchio::COLLISION, geom_model);
-    geom_model.addAllCollisionPairs();
-    pinocchio::srdf::removeCollisionPairs(model, geom_model, srdf_filename);
-    pinocchio::GeometryData geom_data(geom_model);
 
     MultibodyPhaseSpace space(model);
     const int nu = model.nv - 6;
@@ -312,19 +196,10 @@ int main(int argc, char const *argv[])
 
     /************************create problem**********************/
 
-#ifdef FWD_DYNAMICS
     VectorXd u_nom = calcNominalTorque(model, x0.head(nq));
     std::vector<VectorXd> u_ref(nsteps, u_nom);
     ContactFwdDynamics dynamics(space, actuation, contact_params);
     auto problem = createTrajOptProblem(dynamics, nsteps, timestep, x_ref, u_ref, x0);
-#endif
-
-#ifdef INV_DYNAMICS
-    VectorXd u_nom = Eigen::VectorXd::Zero(nv + nu);
-    std::vector<VectorXd> u_ref(nsteps, u_nom);
-    KinematicsODE kinematics(space);
-    auto problem = createTrajOptProblem(kinematics, model, nsteps, timestep, x_ref, u_ref, x0);
-#endif
 
     double tol = 1e-4;
     int max_iters = 100;
@@ -403,11 +278,8 @@ int main(int argc, char const *argv[])
         VectorXd x_interp(nq + nv), u_interp(nu), a_interp(nv);
         interpolator.interpolateState(delay, timestep, solver.results_.xs, x_interp);
         interpolator.interpolateLinear(delay, timestep, solver.results_.us, u_interp);
-        std::vector<VectorXd> a_result = getAccelerationResult(solver, nv);
-        interpolator.interpolateLinear(delay, timestep, a_result, a_interp);
 
         // 评估接触信息
-        pinocchio::container::aligned_vector<pinocchio::Force> force_ext(model.njoints, pinocchio::Force::Zero());
         for (size_t i = 0; i < solver.results_.xs.size() / 2; i++)
         {
             contact_assessment.update(solver.results_.xs[i].head(nq), solver.results_.xs[i].tail(nv));
@@ -415,12 +287,8 @@ int main(int argc, char const *argv[])
             for (size_t i = 0; i < 4; i++)
                 std::cout << contact_assessment.contact_forces()[i].transpose() << "  ";
             std::cout << std::endl;
-            // pinocchio::forwardKinematics(model, data, solver.results_.xs[i].head(nq), solver.results_.xs[i].tail(nv));
-            // pinocchio::computeDistances(model, data, geom_model, geom_data, solver.results_.xs[i].head(nq));
-            // CalcContactForce(model, data, geom_model, geom_data, force_ext);
         }
 
-#ifdef FWD_DYNAMICS
         // std::cout << "=== result state ===\n";
         // for (size_t i = 0; i < solver.results_.xs.size(); ++i)
         // {
@@ -439,37 +307,13 @@ int main(int argc, char const *argv[])
         VectorXd q = x0.segment(7, nu), v = x0.segment(nq + 6, nu);
         VectorXd tau_ref = u_interp;
         VectorXd tau = tau_ref + kp.cwiseProduct(qd - q) + kd.cwiseProduct(vd - v);
-#endif
 
-#ifdef INV_DYNAMICS
-        // std::cout << "=== result state ===\n";
-        // for (size_t i = 0; i < solver.results_.xs.size() / 2; ++i)
-        // {
-        //     std::cout << "xs[" << i << "]: " << solver.results_.xs[i].segment(7, 12).transpose().format(Eigen::IOFormat(3, 0, ", ", ", ", "", "", "[", "]"))
-        //               << solver.results_.xs[i].segment(nq + 6, 12).transpose().format(Eigen::IOFormat(3, 0, ", ", ", ", "", "", "[", "]")) << std::endl;
-        //     // std::cout << "xs[" << i << "]: " << solver.results_.xs[i].transpose().format(Eigen::IOFormat(3, 0, ", ", ", ", "", "", "[", "]")) << std::endl;
-        // }
-        // std::cout << "=== result tau ===\n";
-        // for (size_t i = 0; i < solver.results_.us.size() / 2; ++i)
-        // {
-        //     std::cout << "us[" << i << "]: " << solver.results_.us[i].tail(nu).transpose().format(Eigen::IOFormat(3, 0, ", ", ", ", "", "", "[", "]")) << std::endl;
-        // }
-        // std::cout << "=== End of us vector ===\n";
-
-        VectorXd qd = x_interp.segment(7, nu), vd = x_interp.segment(nq + 6, nu);
-        VectorXd q = x0.segment(7, nu), v = x0.segment(nq + 6, nu);
-        VectorXd tau_ref = u_interp.tail(nu);
-        // VectorXd tau_ref = u_interp.tail(nu) + (solver.results_.getCtrlFeedbacks()[0] * calcStateDifference(model, x0, x_interp)).tail(nu);
-        VectorXd tau = tau_ref + kp.cwiseProduct(qd - q) + kd.cwiseProduct(vd - v);
-#endif
-        VectorXd tau_rnea = pinocchio::rnea(model, data, x0.head(nq), x0.tail(nv), a_interp, contact_assessment.f_ext());
         std::cout << "qd: " << qd.transpose() << std::endl;
         std::cout << "q: " << q.transpose() << std::endl;
         std::cout << "vd: " << vd.transpose() << std::endl;
         std::cout << "v: " << v.transpose() << std::endl;
         std::cout << "tau_d: " << tau_ref.tail(nu).transpose() << std::endl;
         std::cout << "tau: " << tau.transpose() << std::endl;
-        std::cout << "tau_rnea: " << tau_rnea.tail(nu).transpose() << std::endl;
         webots_interface.sendCmd(tau);
 
         itr++;

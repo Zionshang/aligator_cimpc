@@ -32,9 +32,7 @@ add_executable(webots_sim
     src/contact_force.cpp
     src/webots_interface.cpp
     src/foot_slip_clearance_cost.cpp
-    src/interpolator.cpp
-    src/contact_inv_dynamics_residual.cpp
-    src/contact_inv_dynamics_residual2.cpp)
+    src/interpolator.cpp)
 target_link_directories(webots_sim PRIVATE ${WEBOTS_HOME}/lib/controller)
 set(WEBOTSLIBRARIES m ${CMAKE_SHARED_LIBRARY_PREFIX}Controller${CMAKE_SHARED_LIBRARY_SUFFIX} ${CMAKE_SHARED_LIBRARY_PREFIX}CppController${CMAKE_SHARED_LIBRARY_SUFFIX})
 target_include_directories(webots_sim PRIVATE ${WEBOTS_HOME}/include/controller/cpp)
@@ -45,23 +43,6 @@ target_link_libraries(webots_sim aligator::aligator
     proxsuite::proxsuite
 )
 
-add_executable(contact_inv_dynamics_test
-    test/contact_inv_dynamics_test.cpp
-    src/contact_fwd_dynamics.cpp
-    src/contact_inv_dynamics_residual.cpp
-    src/contact_force.cpp)
-target_link_libraries(contact_inv_dynamics_test aligator::aligator
-    pinocchio::pinocchio)
-
-add_executable(offline_inv_dyn_test test/offline_inv_dyn_test.cpp
-    src/contact_force.cpp
-    src/contact_inv_dynamics_residual.cpp
-    src/foot_slip_clearance_cost.cpp)
-
-target_link_libraries(offline_inv_dyn_test aligator::aligator
-    pinocchio::pinocchio
-    yaml-cpp)
-
 add_executable(offline_fwd_dyn_test test/offline_fwd_dyn_test.cpp
     src/contact_force.cpp
     src/contact_fwd_dynamics.cpp
@@ -70,7 +51,3 @@ add_executable(offline_fwd_dyn_test test/offline_fwd_dyn_test.cpp
 target_link_libraries(offline_fwd_dyn_test aligator::aligator
     pinocchio::pinocchio
     yaml-cpp)
-
-
-add_executable(inv_dynamics_test test/inv_dynamics_test.cpp)
-target_link_libraries(inv_dynamics_test pinocchio::pinocchio)
