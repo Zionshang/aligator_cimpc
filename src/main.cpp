@@ -141,19 +141,19 @@ std::shared_ptr<TrajOptProblem> createTrajOptProblem(const KinematicsODE &kinema
 
         StageModel sm = StageModel(rcost, discrete_dyn);
 
-        if (i == 0)
-        {
-            sm.addConstraint(contact_inv_dynamics_residual2, EqualityConstraint());
-        }
-        else
-        {
-            sm.addConstraint(contact_inv_dynamics_residual, EqualityConstraint());
-        }
+        // if (i == 0)
+        // {
+        sm.addConstraint(contact_inv_dynamics_residual2, EqualityConstraint());
+        // }
+        // else
+        // {
+        //     sm.addConstraint(contact_inv_dynamics_residual, EqualityConstraint());
+        // }
         stage_models.push_back(std::move(sm));
     }
 
     auto term_cost = CostStack(space, nu);
-    term_cost.addCost("term_state_cost", QuadraticStateCost(space, nu, x_ref.back(), w_x_term));
+    term_cost.addCost("term_state_cost", QuadraticStateCost(space, nu, x_ref[nsteps], w_x_term));
 
     return std::make_shared<TrajOptProblem>(x0, stage_models, term_cost);
 }
@@ -169,7 +169,7 @@ void updateStateReferences(std::shared_ptr<TrajOptProblem> problem,
     }
     CostStack *cs = dynamic_cast<CostStack *>(&*problem->term_cost_);
     QuadraticStateCost *qsc = cs->getComponent<QuadraticStateCost>("term_state_cost");
-    qsc->setTarget(x_ref.back());
+    qsc->setTarget(x_ref[problem->numSteps()]);
 }
 
 int main(int argc, char const *argv[])
@@ -221,7 +221,7 @@ int main(int argc, char const *argv[])
     /************************reference state**********************/
     double dx = 0;
 
-    std::vector<VectorXd> x_ref(nsteps, x0);
+    std::vector<VectorXd> x_ref(nsteps + 1, x0);
     computeFutureStates(dx, x0, x_ref);
 
     /************************create problem**********************/
