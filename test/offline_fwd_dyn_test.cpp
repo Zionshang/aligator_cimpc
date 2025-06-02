@@ -18,6 +18,8 @@
 #include "foot_slip_clearance_cost.hpp"
 #include "logger.hpp"
 #include "yaml_loader.hpp"
+#include "symmetric_control_residual.hpp"
+#include "contact_assessment.hpp"
 
 using aligator::context::TrajOptProblem;
 using StageModel = aligator::StageModelTpl<double>;
@@ -26,45 +28,13 @@ using IntegratorEuler = aligator::dynamics::IntegratorEulerTpl<double>;
 using CostStack = aligator::CostStackTpl<double>;
 using QuadraticStateCost = aligator::QuadraticStateCostTpl<double>;
 using QuadraticControlCost = aligator::QuadraticControlCostTpl<double>;
+using QuadraticResidualCost = aligator::QuadraticResidualCostTpl<double>;
 using CostFiniteDifference = aligator::autodiff::CostFiniteDifferenceHelper<double>;
 using ControlErrorResidual = aligator::ControlErrorResidualTpl<double>;
 using BoxConstraint = proxsuite::nlp::BoxConstraintTpl<double>;
 
-std::string yaml_filename = "/home/zishang/cpp_workspace/aligator_cimpc/config/parameters.yaml";
+std::string yaml_filename = "/home/zishang/cpp_workspace/aligator_cimpc/config/parameters_walk.yaml";
 YamlLoader yaml_loader(yaml_filename);
-
-VectorXd calcNominalTorque(const Model &model, const VectorXd &q_nom)
-{
-    int nq = model.nq;
-    int nv = model.nv;
-    Data data(model);
-    pinocchio::rnea(model, data, q_nom, VectorXd::Zero(nv), VectorXd::Zero(nv));
-    // return data.tau.tail(nv - 6);
-    return VectorXd::Zero(nv - 6);
-}
-
-void computeFutureStates(const Model &model,
-                         const double &vx,
-                         const VectorXd &x0,
-                         double dt,
-                         std::vector<VectorXd> &x_ref)
-{
-    Data data(model);
-
-    int nq = model.nq;
-    int nv = model.nv;
-
-    VectorXd q = x0.head(nq);
-    VectorXd v = x0.tail(nv);
-
-    x_ref[0] = x0;
-
-    for (int i = 1; i < x_ref.size(); ++i)
-    {
-        x_ref[i](0) = x_ref[i - 1](0) + vx * dt;
-        x_ref[i](nq) = vx;
-    }
-}
 
 void computeFutureStates(const double &dx,
                          const VectorXd &x0,
@@ -114,6 +84,7 @@ std::shared_ptr<TrajOptProblem> createTrajOptProblem(const ContactFwdDynamics &d
     CostFiniteDifference fscc_fini_diff(fscc, 1e-6);
     ControlErrorResidual control_error(space.ndx(), nu);
     VectorXd u_max = space.getModel().effortLimit.tail(nu);
+    SymmetricControlResidual symmetric_control_residual(ndx, nu);
 
     for (size_t i = 0; i < nsteps; i++)
     {
@@ -121,10 +92,13 @@ std::shared_ptr<TrajOptProblem> createTrajOptProblem(const ContactFwdDynamics &d
         rcost.addCost("state_cost", QuadraticStateCost(space, nu, x_ref[i], w_x));
         rcost.addCost("control_cost", QuadraticControlCost(space, u_ref[i], w_u));
         rcost.addCost("foot_slip_clearance_cost", fscc_fini_diff);
+        rcost.addCost("symmetric_control_cost",
+                      QuadraticResidualCost(space, symmetric_control_residual,
+                                            yaml_loader.w_symmetric_control * MatrixXd::Identity(4, 4)));
 
         StageModel sm = StageModel(rcost, discrete_dyn);
 
-        // sm.addConstraint(control_error, BoxConstraint(-u_max, u_max));
+        sm.addConstraint(control_error, BoxConstraint(-u_max, u_max));
         stage_models.push_back(std::move(sm));
     }
 
@@ -183,7 +157,7 @@ int main(int argc, char const *argv[])
     std::vector<VectorXd> x_ref(nsteps, x0);
     // computeFutureStates(model, vx, x0, timestep, x_ref);
     computeFutureStates(dx, x0, x_ref);
-    VectorXd u_nom = calcNominalTorque(model, x0.head(nq));
+    VectorXd u_nom = VectorXd::Zero(nu);
     std::vector<VectorXd> u_ref(nsteps, u_nom);
 
     /************************print reference state**********************/
@@ -225,6 +199,7 @@ int main(int argc, char const *argv[])
     std::cout << std::fixed << std::setprecision(2);
     dx = 0.5;
     std::vector<double> solve_times; // 用于存储每次求解时间
+    ContactAssessment contact_assessment(model, contact_params);
 
     for (size_t i = 0; i < 200; i++)
     {
@@ -238,16 +213,6 @@ int main(int argc, char const *argv[])
         // 更新当前位置
         problem->setInitState(x0);
 
-        // 求解
-        auto start_time = std::chrono::high_resolution_clock::now();
-        solver.run(*problem, x_guess, u_guess);
-        auto end_time = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> elapsed = end_time - start_time;
-        solve_times.push_back(elapsed.count()); // 记录求解时间
-
-        // 更新位置
-        x0 = solver.results_.xs[1];
-
         // 更新warm start
         x_guess = solver.results_.xs;
         u_guess = solver.results_.us;
@@ -257,18 +222,30 @@ int main(int argc, char const *argv[])
         u_guess.erase(u_guess.begin());
         u_guess.push_back(u_guess.back());
 
+        // 求解
+        auto start_time = std::chrono::high_resolution_clock::now();
+        solver.run(*problem, x_guess, u_guess);
+        auto end_time = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> elapsed = end_time - start_time;
+        solve_times.push_back(elapsed.count()); // 记录求解时间
+
+        // 评估当前接触力
+        contact_assessment.update(x0.head(nq), x0.tail(nv));
+
+        // 更新位置
+        x0 = solver.results_.xs[1];
+
         // 记录数据
         x_log.push_back(x0);
         u_log.push_back(solver.results_.us[0]);
-        // dynamics.forward(solver.results_.xs[0], solver.results_.us[0], dyn_data);
-        // for (size_t i = 0; i < 4; i++)
-        // {
-        //     const auto &force = dyn_data.contact_forces_[i];
-        //     std::cout << force.transpose() << "  ";
-        //     contact_forces.segment(i * 3, 3) = force;
-        // }
-        // std::cout << std::endl;
-        // contact_forces_log.push_back(contact_forces);
+        for (size_t i = 0; i < 4; i++)
+        {
+            const auto &force = contact_assessment.contact_forces()[i];
+            std::cout << force.transpose() << "  ";
+            contact_forces.segment(i * 3, 3) = force;
+        }
+        std::cout << std::endl;
+        contact_forces_log.push_back(contact_forces);
         cost_log.push_back(solver.results_.traj_cost_);
     }
     // 计算并输出平均求解时间
@@ -278,7 +255,7 @@ int main(int argc, char const *argv[])
 
     saveVectorsToCsv("offline_fwd_sim_x.csv", x_log);
     saveVectorsToCsv("offline_fwd_sim_u.csv", u_log);
-    // saveVectorsToCsv("offine_fwd_sim_contact_forces.csv", contact_forces_log);
+    saveVectorsToCsv("offine_fwd_sim_contact_forces.csv", contact_forces_log);
     saveVectorsToCsv("offline_fwd_sim_cost.csv", cost_log);
 
     return 0;

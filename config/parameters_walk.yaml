@@ -1,0 +1,36 @@
+w_pos_body: [20, 20, 80, 10, 10, 10]
+w_pos_leg: [0.1, 0.1, 0.1]
+w_vel_body: [0.7, 0.7, 3, 0.3, 0.3, 0.3]
+w_vel_leg: [0.003, 0.003, 0.003]
+
+w_pos_body_term: [200, 200, 800, 100, 100, 100]
+w_pos_leg_term: [10, 10, 10]
+
+w_vel_body_term: [7, 7, 20, 3, 3, 3]
+w_vel_leg_term: [10, 10, 10]
+
+w_u_leg: [2e-4, 2e-4, 2e-4]
+
+w_foot_slip_clearance: 0.2
+w_symmetric_control: 1e-2
+
+kp_leg: [50, 50, 50]
+kd_leg: [2, 2, 2]
+
+nsteps: 40
+timestep: 0.02
+max_iter: 2
+
+real_contact:
+  contact_stiffness: 3000
+  smoothing_factor: 0.02
+  dissipation_velocity: 0.1.
+  stiction_velocity: 0.5
+  friction_coefficient: 1.0
+
+fake_contact:
+  contact_stiffness: 2000
+  smoothing_factor: 0.01
+  dissipation_velocity: 0.1
+  stiction_velocity: 0.5
+  friction_coefficient: 1.0
