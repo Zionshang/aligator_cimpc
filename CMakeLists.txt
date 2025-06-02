@@ -51,3 +51,9 @@ add_executable(offline_fwd_dyn_test test/offline_fwd_dyn_test.cpp
 target_link_libraries(offline_fwd_dyn_test aligator::aligator
     pinocchio::pinocchio
     yaml-cpp)
+
+
+add_executable(interpolator_test test/interpolator_test.cpp
+    src/interpolator.cpp)
+
+target_link_libraries(interpolator_test pinocchio::pinocchio)

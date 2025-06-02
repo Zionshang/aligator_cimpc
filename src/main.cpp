@@ -25,7 +25,6 @@
 #include "webots_interface.hpp"
 #include "contact_assessment.hpp"
 #include "interpolator.hpp"
-#include "kinematics_ode.hpp"
 #include "timer.hpp"
 
 using aligator::context::TrajOptProblem;
