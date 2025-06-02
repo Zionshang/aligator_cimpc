@@ -26,12 +26,14 @@
 #include "contact_assessment.hpp"
 #include "interpolator.hpp"
 #include "timer.hpp"
+#include "symmetric_control_residual.hpp"
 
 using aligator::context::TrajOptProblem;
 using StageModel = aligator::StageModelTpl<double>;
 using CostStack = aligator::CostStackTpl<double>;
 using QuadraticStateCost = aligator::QuadraticStateCostTpl<double>;
 using QuadraticControlCost = aligator::QuadraticControlCostTpl<double>;
+using QuadraticResidualCost = aligator::QuadraticResidualCostTpl<double>;
 using CostFiniteDifference = aligator::autodiff::CostFiniteDifferenceHelper<double>;
 using ControlErrorResidual = aligator::ControlErrorResidualTpl<double>;
 using BoxConstraint = proxsuite::nlp::BoxConstraintTpl<double>;
@@ -42,7 +44,7 @@ using IntegratorMidpoint = aligator::dynamics::IntegratorMidpointTpl<double>;
 using IntegratorRK2 = aligator::dynamics::IntegratorRK2Tpl<double>;
 using EqualityConstraint = proxsuite::nlp::EqualityConstraintTpl<double>;
 
-std::string yaml_filename = "/home/zishang/cpp_workspace/aligator_cimpc/config/parameters.yaml";
+std::string yaml_filename = "/home/zishang/cpp_workspace/aligator_cimpc/config/parameters_walk.yaml";
 YamlLoader yaml_loader(yaml_filename);
 
 VectorXd calcNominalTorque(const Model &model, const VectorXd &q_nom)
@@ -105,6 +107,7 @@ std::shared_ptr<TrajOptProblem> createTrajOptProblem(const ContactFwdDynamics &d
     CostFiniteDifference fscc_fini_diff(fscc, 1e-6);
     ControlErrorResidual control_error(space.ndx(), nu);
     VectorXd u_max = space.getModel().effortLimit.tail(nu);
+    SymmetricControlResidual symmetric_control_residual(ndx, nu);
 
     for (size_t i = 0; i < nsteps; i++)
     {
@@ -112,10 +115,13 @@ std::shared_ptr<TrajOptProblem> createTrajOptProblem(const ContactFwdDynamics &d
         rcost.addCost("state_cost", QuadraticStateCost(space, nu, x_ref[i], w_x));
         rcost.addCost("control_cost", QuadraticControlCost(space, u_ref[i], w_u));
         rcost.addCost("foot_slip_clearance_cost", fscc_fini_diff);
+        rcost.addCost("symmetric_control_cost",
+                      QuadraticResidualCost(space, symmetric_control_residual,
+                                            yaml_loader.w_symmetric_control * MatrixXd::Identity(4, 4)));
 
         StageModel sm = StageModel(rcost, discrete_dyn);
 
-        // sm.addConstraint(control_error, BoxConstraint(-u_max, u_max));
+        sm.addConstraint(control_error, BoxConstraint(-u_max, u_max));
         stage_models.push_back(std::move(sm));
     }
 
@@ -237,7 +243,7 @@ int main(int argc, char const *argv[])
     std::vector<double> cost_log;
     VectorXd contact_forces = VectorXd::Zero(12);
     std::vector<VectorXd> contact_forces_log;
-    dx = 0;
+    dx = 0.5;
     VectorXd kp(nu), kd(nu);
     kp << yaml_loader.kp_leg, yaml_loader.kp_leg, yaml_loader.kp_leg, yaml_loader.kp_leg;
     kd << yaml_loader.kd_leg, yaml_loader.kd_leg, yaml_loader.kd_leg, yaml_loader.kd_leg;
