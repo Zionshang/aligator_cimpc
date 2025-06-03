@@ -192,7 +192,6 @@ int main(int argc, char const *argv[])
         0.0, -0.8, 1.6;
 
     /************************reference state**********************/
-    double vx = 0;
     double dx = 0;
 
     std::vector<VectorXd> x_ref(nsteps, x0);
@@ -200,7 +199,6 @@ int main(int argc, char const *argv[])
     computeFutureStates(dx, x0, x_ref);
 
     /************************create problem**********************/
-
     VectorXd u_nom = calcNominalTorque(model, x0.head(nq));
     std::vector<VectorXd> u_ref(nsteps, u_nom);
     ContactFwdDynamics dynamics(space, actuation, contact_params);
@@ -210,16 +208,17 @@ int main(int argc, char const *argv[])
     int max_iters = 100;
     double mu_init = 1e-8;
     aligator::SolverProxDDPTpl<double> solver(tol, mu_init, max_iters, aligator::VerboseLevel::QUIET);
-    std::vector<VectorXd> x_guess, u_guess;
-    x_guess.assign(nsteps + 1, x0);
-    u_guess.assign(nsteps, u_nom);
     solver.rollout_type_ = aligator::RolloutType::LINEAR;
     solver.force_initial_condition_ = true;
     solver.linear_solver_choice = aligator::LQSolverChoice::PARALLEL;
+    // solver.sa_strategy_ = aligator::StepAcceptanceStrategy::FILTER;
     solver.setNumThreads(8);
     solver.setup(*problem);
 
     /************************first solve**********************/
+    std::vector<VectorXd> x_guess, u_guess;
+    x_guess.assign(nsteps + 1, x0);
+    u_guess.assign(nsteps, u_nom);
     solver.run(*problem, x_guess, u_guess);
 
     x_guess = solver.results_.xs;
@@ -243,7 +242,7 @@ int main(int argc, char const *argv[])
     std::vector<double> cost_log;
     VectorXd contact_forces = VectorXd::Zero(12);
     std::vector<VectorXd> contact_forces_log;
-    dx = 0.5;
+    dx = 0.25;
     VectorXd kp(nu), kd(nu);
     kp << yaml_loader.kp_leg, yaml_loader.kp_leg, yaml_loader.kp_leg, yaml_loader.kp_leg;
     kd << yaml_loader.kd_leg, yaml_loader.kd_leg, yaml_loader.kd_leg, yaml_loader.kd_leg;
