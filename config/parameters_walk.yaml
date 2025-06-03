@@ -9,7 +9,7 @@ w_pos_leg_term: [1, 1, 1]
 w_vel_body_term: [1, 1, 1, 1, 1, 1]
 w_vel_leg_term: [0.1, 0.1, 0.1]
 
-w_u_leg: [1e-3, 1e-3, 1e-3]
+w_u_leg: [1e-2, 1e-2, 1e-2]
 
 w_foot_slip_clearance: 1.0
 w_symmetric_control: 1e-2
@@ -17,8 +17,8 @@ w_symmetric_control: 1e-2
 kp_leg: [50, 50, 50]
 kd_leg: [2, 2, 2]
 
-nsteps: 40
-timestep: 0.01
+nsteps: 20
+timestep: 0.05
 max_iter: 2
 
 real_contact:

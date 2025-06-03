@@ -59,3 +59,13 @@ add_executable(interpolator_test test/interpolator_test.cpp
     src/interpolator.cpp)
 
 target_link_libraries(interpolator_test pinocchio::pinocchio)
+
+add_executable(cost_comparation test/cost_comparation.cpp
+    src/contact_force.cpp
+    src/contact_fwd_dynamics.cpp
+    src/foot_slip_clearance_cost.cpp
+    src/symmetric_control_residual.cpp)
+
+target_link_libraries(cost_comparation aligator::aligator
+    pinocchio::pinocchio
+    yaml-cpp)
