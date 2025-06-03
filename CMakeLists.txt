@@ -69,3 +69,9 @@ add_executable(cost_comparation test/cost_comparation.cpp
 target_link_libraries(cost_comparation aligator::aligator
     pinocchio::pinocchio
     yaml-cpp)
+
+add_executable(foot_slip_clearance_cost_test test/foot_slip_clearance_cost_test.cpp
+    src/foot_slip_clearance_cost.cpp)
+
+target_link_libraries(foot_slip_clearance_cost_test aligator::aligator
+    pinocchio::pinocchio)

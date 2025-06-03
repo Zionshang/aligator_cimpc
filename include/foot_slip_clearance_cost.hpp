@@ -3,6 +3,7 @@
 #include <proxsuite-nlp/modelling/spaces/multibody.hpp>
 #include <pinocchio/algorithm/kinematics.hpp>
 #include <pinocchio/algorithm/frames.hpp>
+#include <pinocchio/autodiff/cppad.hpp>
 
 using CostAbstract = aligator::CostAbstractTpl<double>;
 using MultibodyPhaseSpace = proxsuite::nlp::MultibodyPhaseSpace<double>;
@@ -37,7 +38,7 @@ struct FootSlipClearanceCost : CostAbstract
     double cf_ = 1.0; // 总成本系数
     double c1_ = -30; // Sigmoid 函数陡峭程度（负值）
 
-    std::vector<int> foot_frame_ids_{11, 19, 27, 35};
+    std::vector<int> foot_frame_ids_{11, 19, 27, 35};  // todo: 使用参数传递
 };
 
 struct FootSlipClearanceCostData : CostData
@@ -45,4 +46,5 @@ struct FootSlipClearanceCostData : CostData
     FootSlipClearanceCostData(const FootSlipClearanceCost &cost);
 
     pinocchio::Data data_;
+    CppAD::ADFun<double> ad_cost_fun_;
 };

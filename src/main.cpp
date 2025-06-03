@@ -103,8 +103,7 @@ std::shared_ptr<TrajOptProblem> createTrajOptProblem(const ContactFwdDynamics &d
     IntegratorSemiImplEuler discrete_dyn = IntegratorSemiImplEuler(dynamics, timestep);
 
     std::vector<xyz::polymorphic<StageModel>> stage_models;
-    FootSlipClearanceCost fscc(space, nu, yaml_loader.w_foot_slip_clearance, -30.0);
-    CostFiniteDifference fscc_fini_diff(fscc, 1e-6);
+    FootSlipClearanceCost fsc_cost(space, nu, yaml_loader.w_foot_slip_clearance, -30.0);
     ControlErrorResidual control_error(space.ndx(), nu);
     VectorXd u_max = space.getModel().effortLimit.tail(nu);
     SymmetricControlResidual symmetric_control_residual(ndx, nu);
@@ -114,7 +113,7 @@ std::shared_ptr<TrajOptProblem> createTrajOptProblem(const ContactFwdDynamics &d
         auto rcost = CostStack(space, nu);
         rcost.addCost("state_cost", QuadraticStateCost(space, nu, x_ref[i], w_x));
         rcost.addCost("control_cost", QuadraticControlCost(space, u_ref[i], w_u));
-        rcost.addCost("foot_slip_clearance_cost", fscc_fini_diff);
+        rcost.addCost("foot_slip_clearance_cost", fsc_cost);
         rcost.addCost("symmetric_control_cost",
                       QuadraticResidualCost(space, symmetric_control_residual,
                                             yaml_loader.w_symmetric_control * MatrixXd::Identity(4, 4)));

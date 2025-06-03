@@ -51,4 +51,46 @@ FootSlipClearanceCostData::FootSlipClearanceCostData(const FootSlipClearanceCost
     : CostData(cost)
 {
     data_ = pinocchio::Data(cost.space_.getModel());
+
+    //////////// 创建 CppAD 的cost函数 //////////
+    using CppAD::AD;
+    using ADVectorX = Eigen::VectorX<AD<double>>;
+
+    const auto &model = cost.space_.getModel();
+    pinocchio::ModelTpl<AD<double>> ad_model = model.cast<AD<double>>();
+    pinocchio::DataTpl<AD<double>> ad_data(ad_model);
+    int nq = ad_model.nq;
+    int nv = ad_model.nv;
+    ADVectorX ad_X(nq + nv + nv); // q, v, dq
+    ad_X.setZero();
+    CppAD::Independent(ad_X);
+    ADVectorX ad_Y(1);
+
+    const int num_feet = 4;
+    AD<double> ad_cost = AD<double>(0.0);
+
+    ADVectorX ad_q = ad_X.head(nq);
+    ADVectorX ad_v = ad_X.segment(nq, nv);
+    ADVectorX ad_dq = ad_X.tail(nv);
+
+    ADVectorX ad_q_plus = pinocchio::integrate(ad_model, ad_q, ad_dq);
+    pinocchio::forwardKinematics(ad_model, ad_data, ad_q_plus, ad_v);
+    pinocchio::updateFramePlacements(ad_model, ad_data);
+
+    ADVectorX ad_nhat = cost.nhat_.cast<AD<double>>();
+    for (int k = 0; k < num_feet; ++k)
+    {
+        // 脚的离地高度
+        AD<double> phi = ad_data.oMf[cost.foot_frame_ids_[k]].translation()(cost.foot_height_idx_);
+
+        // 脚的切向速度
+        ADVectorX v = pinocchio::getFrameVelocity(ad_model, ad_data, cost.foot_frame_ids_[k], pinocchio::LOCAL_WORLD_ALIGNED).linear();
+        ADVectorX v_t = v - v.dot(ad_nhat) * ad_nhat;
+
+        AD<double> s = 1.0 / (1.0 + CppAD::exp(-cost.c1_ * phi)); // Sigmoid
+        ad_cost += s * v_t.squaredNorm();
+    }
+
+    ad_Y << cost.cf_ * ad_cost;
+    ad_cost_fun_.Dependent(ad_X, ad_Y);
 }
