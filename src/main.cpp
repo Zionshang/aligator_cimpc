@@ -68,6 +68,12 @@ void computeFutureStates(const double &dx,
         // Eigen::Quaterniond q_yaw(Eigen::AngleAxisd(M_PI / 3, Eigen::Vector3d::UnitY()));
         // x_ref[i].segment(3, 4) = q_yaw.coeffs();
     }
+    // x_ref.back()[0] = x0(0) + dx;
+    // for (size_t i = 1; i < x_ref.size() - 1; ++i)
+    // {
+    //     double alpha = static_cast<double>(i) / (x_ref.size() - 1);
+    //     x_ref[i](0) = (1 - alpha) * x_ref[0](0) + alpha * x_ref.back()(0);
+    // }
 }
 
 std::shared_ptr<TrajOptProblem> createTrajOptProblem(const ContactFwdDynamics &dynamics,
@@ -282,15 +288,15 @@ int main(int argc, char const *argv[])
         interpolator.interpolateState(delay, timestep, solver.results_.xs, x_interp);
         interpolator.interpolateLinear(delay, timestep, solver.results_.us, u_interp);
 
-        // 评估接触信息
-        for (size_t i = 0; i < solver.results_.xs.size() / 2; i++)
-        {
-            contact_assessment.update(solver.results_.xs[i].head(nq), solver.results_.xs[i].tail(nv));
-            std::cout << "contact forces: ";
-            for (size_t i = 0; i < 4; i++)
-                std::cout << contact_assessment.contact_forces()[i].transpose() << "  ";
-            std::cout << std::endl;
-        }
+        // // 评估接触信息
+        // for (size_t i = 0; i < solver.results_.xs.size() / 2; i++)
+        // {
+        //     contact_assessment.update(solver.results_.xs[i].head(nq), solver.results_.xs[i].tail(nv));
+        //     std::cout << "contact forces: ";
+        //     for (size_t i = 0; i < 4; i++)
+        //         std::cout << contact_assessment.contact_forces()[i].transpose() << "  ";
+        //     std::cout << std::endl;
+        // }
 
         // std::cout << "=== result state ===\n";
         // for (size_t i = 0; i < solver.results_.xs.size(); ++i)
