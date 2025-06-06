@@ -75,3 +75,10 @@ add_executable(foot_slip_clearance_cost_test test/foot_slip_clearance_cost_test.
 
 target_link_libraries(foot_slip_clearance_cost_test aligator::aligator
     pinocchio::pinocchio)
+
+add_executable(soft_gait
+    test/soft_gait.cpp
+    src/gait_phase_alignment.cpp)
+
+target_link_libraries(soft_gait aligator::aligator
+    pinocchio::pinocchio)
