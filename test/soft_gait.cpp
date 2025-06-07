@@ -4,8 +4,10 @@
 #include <pinocchio/autodiff/cppad.hpp>
 #include <pinocchio/algorithm/kinematics.hpp>
 #include <pinocchio/algorithm/frames.hpp>
+#include <aligator/modelling/costs/relaxed-log-barrier.hpp>
 
 using MultibodyPhaseSpace = proxsuite::nlp::MultibodyPhaseSpace<double>;
+using RelaxedLogBarrierCost = aligator::RelaxedLogBarrierCostTpl<double>;
 
 int main()
 {
@@ -99,5 +101,18 @@ int main()
     else
         std::cout << "Jacobians is wrong" << std::endl;
 
+    ////////////////////// 测试加入了障碍函数的cost //////////////////////
+    double weight = 1;
+    double threshold = 1e-2;
+    RelaxedLogBarrierCost log_barrier_cost(space, gait_phase_alignment, weight, threshold);
+    auto log_barrier_cost_data = log_barrier_cost.createData();
+    for (double t = 0.0; t <= 2.0; t += 0.1)
+    {
+        GaitAlignmentResidual *gar = log_barrier_cost.getResidual<GaitAlignmentResidual>();
+        gar->updateTime(t);
+        log_barrier_cost.evaluate(x, u, *log_barrier_cost_data);
+        std::cout << "Time: " << t << ", Relaxed Log Barrier Cost: "
+                  << log_barrier_cost_data->value_ << std::endl;
+    }
     return 0;
 }
